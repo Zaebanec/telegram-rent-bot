@@ -90,11 +90,13 @@ async def add_price_rule(request: web.Request) -> web.Response:
 
 def setup_routes(app: web.Application):
     """Настраивает все веб-роуты с поддержкой CORS."""
+    app.router.add_static('/static/', path='app/static', name='static')
     cors = aiohttp_cors.setup(app, defaults={
         "*": aiohttp_cors.ResourceOptions(
             allow_credentials=True, expose_headers="*",
             allow_headers="*", allow_methods="*",
         )
+        
     })
     
     calendar_resource = cors.add(app.router.add_resource('/api/calendar_data/{property_id}'))
