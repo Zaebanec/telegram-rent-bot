@@ -1,0 +1,30 @@
+services:
+  bot:
+    build: .
+    env_file: .env
+    volumes:
+      - .:/app
+    # --- ИСПРАВЛЕНИЕ: Открываем порт для веб-сервера ---
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+      - redis
+    restart: always
+
+  db:
+    image: postgres:16-alpine
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5433:5432"
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+
+volumes:
+  postgres_data:
+
