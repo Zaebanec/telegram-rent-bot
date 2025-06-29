@@ -12,14 +12,9 @@
             --tg-button: var(--tg-theme-button-color, #2481cc);
             --tg-button-text: var(--tg-theme-button-text-color, #ffffff);
             --tg-secondary-bg: var(--tg-theme-secondary-bg-color, #f1f1f1);
-            /* --- ИСПРАВЛЕНИЕ №3: Новый цвет для забронированных дат --- */
             --color-booked: #e0e0e0; 
         }
-        /* --- ИСПРАВЛЕНИЕ №1: Решаем проблему со скроллингом на iOS --- */
-        html, body {
-            height: auto; 
-            min-height: 100%;
-        }
+        html, body { height: auto; min-height: 100%; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--tg-bg);
@@ -45,21 +40,14 @@
         .calendar-day.disabled { color: var(--tg-hint); cursor: not-allowed; opacity: 0.6; }
         .calendar-day.disabled .day-number { text-decoration: line-through; }
         .calendar-day.padding { visibility: hidden; }
-        /* --- ИСПРАВЛЕНИЕ №3: Стиль для забронированных дат --- */
-        .calendar-day.booked {
-            background-color: var(--color-booked);
-        }
-        /* --- ИСПРАВЛЕНИЕ №2: Убираем нижнюю панель, т.к. будем использовать нативную кнопку --- */
-        .sticky-footer {
-            padding-bottom: 15px; /* Оставляем отступ, чтобы контент не прилипал к низу */
-        }
+        .calendar-day.booked { background-color: var(--color-booked); }
+        .sticky-footer { padding-bottom: 15px; }
         .info-panel { text-align: center; padding: 12px; border-radius: 8px; font-size: 14px; background-color: var(--tg-secondary-bg); }
     </style>
 </head>
 <body>
 
     <div id="calendar-body"></div>
-    <!-- --- ИСПРАВЛЕНИЕ №2: Убираем HTML-кнопку и ее контейнер --- -->
     <div class="sticky-footer">
         <div class="info-panel" id="info-panel">Загрузка...</div>
     </div>
@@ -74,13 +62,7 @@
             const calendarBody = document.getElementById('calendar-body');
             const infoPanel = document.getElementById('info-panel');
             
-            // --- ИСПРАВЛЕНИЕ №2: Настраиваем нативную главную кнопку ---
-            tg.MainButton.setText('Выберите даты');
-            tg.MainButton.disable();
-            tg.MainButton.onClick(onConfirmClick);
-
-            let currentMonth = new Date().getMonth();
-            let currentYear = new Date().getFullYear();
+            let currentYear, currentMonth;
             let calendarData = {}; 
             let checkinDate = null;
             let checkoutDate = null;
@@ -90,28 +72,33 @@
             const dayNames = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
             function fetchAndRenderMonth(year, month) {
-                if (isLoading) return;
-                isLoading = true;
-                const urlParams = new URLSearchParams(window.location.search);
-                const propertyId = urlParams.get('property_id');
-                if (!propertyId) {
-                    infoPanel.textContent = "Ошибка: не найден ID объекта.";
-                    return;
-                }
-                const fetchUrl = `/api/calendar_data/${propertyId}?year=${year}&month=${month + 1}`;
-                fetch(fetchUrl, { headers: { 'ngrok-skip-browser-warning': 'true' } })
-                    .then(response => response.json())
-                    .then(data => {
-                        data.forEach(dayInfo => { calendarData[dayInfo.date] = { status: dayInfo.status, price: dayInfo.price }; });
-                        renderMonth(year, month);
+                return new Promise((resolve, reject) => {
+                    if (isLoading) return resolve();
+                    isLoading = true;
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const propertyId = urlParams.get('property_id');
+                    if (!propertyId) {
+                        infoPanel.textContent = "Ошибка: не найден ID объекта.";
                         isLoading = false;
-                        updateUI();
-                    })
-                    .catch(error => {
-                        console.error('Ошибка загрузки:', error);
-                        infoPanel.textContent = "Ошибка загрузки данных.";
-                        isLoading = false;
-                    });
+                        return reject();
+                    }
+                    const fetchUrl = `/api/calendar_data/${propertyId}?year=${year}&month=${month + 1}`;
+                    fetch(fetchUrl, { headers: { 'ngrok-skip-browser-warning': 'true' } })
+                        .then(response => response.json())
+                        .then(data => {
+                            data.forEach(dayInfo => { calendarData[dayInfo.date] = { status: dayInfo.status, price: dayInfo.price }; });
+                            renderMonth(year, month);
+                            isLoading = false;
+                            updateUI();
+                            resolve();
+                        })
+                        .catch(error => {
+                            console.error('Ошибка загрузки:', error);
+                            infoPanel.textContent = "Ошибка загрузки данных.";
+                            isLoading = false;
+                            reject(error);
+                        });
+                });
             }
             
             function renderMonth(year, month) {
@@ -144,7 +131,6 @@
                     let dayNumberHTML = `<div class="day-number">${day}</div>`;
                     let dayPriceHTML = '';
                     if (dayData) {
-                        // --- ИСПРАВЛЕНИЕ №3: Добавляем отдельные классы для статусов ---
                         if (dayData.status !== 'available') {
                             dayEl.classList.add('disabled');
                             if (dayData.status === 'booked') {
@@ -216,20 +202,25 @@
                     }
                 });
 
+                // --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Надежная логика управления кнопкой ---
+                // Сначала всегда снимаем старый обработчик, чтобы избежать дублирования
+                tg.MainButton.offClick(onConfirmClick);
+
                 if (!checkinDate) {
                     infoPanel.textContent = 'Выберите дату заезда';
-                    tg.MainButton.disable();
                     tg.MainButton.hide();
                 } else if (!checkoutDate) {
                     infoPanel.textContent = `Заезд: ${formatDate(checkinDate)}. Теперь выберите дату выезда.`;
+                    tg.MainButton.setText('Выберите дату выезда');
                     tg.MainButton.disable();
                     tg.MainButton.show();
                 } else {
                     const { total, nights } = calculateTotal();
                     if (nights > 0) {
                         infoPanel.textContent = `Итоговая стоимость за ${nights} ночей`;
-                        // --- ИСПРАВЛЕНИЕ №2: Управляем нативной кнопкой ---
                         tg.MainButton.setText(`Подтвердить за ${total} руб.`);
+                        // Назначаем новый обработчик только тогда, когда кнопка становится активной
+                        tg.MainButton.onClick(onConfirmClick);
                         tg.MainButton.enable();
                         tg.MainButton.show();
                     } else {
@@ -260,17 +251,11 @@
                 return `${day}.${month}`;
             }
 
-            window.addEventListener('scroll', () => {
-                if (!isLoading && (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 150) {
-                   currentMonth++;
-                   if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-                   fetchAndRenderMonth(currentYear, currentMonth);
-                }
-            });
-
-            // --- ИСПРАВЛЕНИЕ №2: Новая функция для обработки клика на нативную кнопку ---
             function onConfirmClick() {
+                // Добавим лог для отладки
+                console.log('MainButton clicked!');
                 if (!tg.MainButton.isActive || !tg.MainButton.isVisible) return;
+                
                 if (checkinDate && checkoutDate) {
                     const { total } = calculateTotal();
                     const dataToSend = {
@@ -279,16 +264,38 @@
                         checkout_date: checkoutDate,
                         total_price: total
                     };
+                    console.log('Sending data:', dataToSend);
                     tg.sendData(JSON.stringify(dataToSend));
-                    // tg.close() можно не вызывать, sendData часто делает это сама
+                } else {
+                    console.log('Click ignored: dates not selected.');
                 }
             }
 
-            function main() {
-                fetchAndRenderMonth(currentYear, currentMonth);
-                let nextMonth = currentMonth + 1, nextYear = currentYear;
-                if (nextMonth > 11) { nextMonth = 0; nextYear++; }
-                fetchAndRenderMonth(nextYear, nextMonth);
+            window.addEventListener('scroll', () => {
+                if (!isLoading && (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 150) {
+                   currentMonth++;
+                   if (currentMonth > 11) {
+                       currentMonth = 0;
+                       currentYear++;
+                   }
+                   fetchAndRenderMonth(currentYear, currentMonth);
+                }
+            });
+
+            async function main() {
+                const today = new Date();
+                currentYear = today.getFullYear();
+                currentMonth = today.getMonth();
+
+                for (let i = 0; i < 4; i++) {
+                    let yearToLoad = currentYear;
+                    let monthToLoad = currentMonth + i;
+                    if (monthToLoad > 11) {
+                        yearToLoad += Math.floor(monthToLoad / 12);
+                        monthToLoad = monthToLoad % 12;
+                    }
+                    await fetchAndRenderMonth(yearToLoad, monthToLoad);
+                }
             }
             main();
         });
