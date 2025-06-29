@@ -8,7 +8,7 @@ from app.keyboards.inline_keyboards import get_rating_keyboard
 
 router = Router()
 
-# ... (код process_rating и process_comment без изменений) ...
+# --- Обработчики для оставления отзыва (остаются без изменений) ---
 @router.callback_query(F.data.startswith("review:"))
 async def process_rating(callback: CallbackQuery, state: FSMContext):
     _, booking_id_str, _, rating_str = callback.data.split(":")
@@ -39,21 +39,31 @@ async def process_comment(message: Message, state: FSMContext):
     await state.clear()
 
 
-# --- НОВЫЙ ОБРАБОТЧИК ---
+# --- Обработчик для просмотра отзывов ---
 @router.callback_query(F.data.startswith("view_reviews:"))
 async def view_reviews_handler(callback: CallbackQuery):
+    """
+    Обработчик для кнопки 'Читать отзывы'.
+    Получает и форматирует последние отзывы для объекта.
+    """
+    await callback.answer()
     property_id = int(callback.data.split(":")[1])
-    reviews = await get_latest_reviews(property_id)
+    
+    # Получаем последние 5 отзывов из сервисного слоя
+    reviews = await get_latest_reviews(property_id, limit=5)
     
     if not reviews:
-        await callback.answer("У этого объекта еще нет отзывов.", show_alert=True)
+        await callback.message.answer("У этого объекта еще нет отзывов.")
         return
 
+    # Форматируем отзывы в одно красивое сообщение
     response_text = "<b>Последние отзывы:</b>\n\n"
     for review in reviews:
         stars = "⭐️" * review.rating
+        # Добавляем текст отзыва, если он есть
         comment = f" — «{review.text}»" if review.text else ""
-        response_text += f"{stars}{comment}\n--------------------\n"
+        response_text += f"{stars}{comment}\n"
+        # Добавляем разделитель
+        response_text += "--------------------\n"
         
     await callback.message.answer(response_text)
-    await callback.answer()

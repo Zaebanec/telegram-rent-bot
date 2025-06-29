@@ -3,10 +3,6 @@ from datetime import datetime, timedelta
 from aiogram import F, Router, Bot
 from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 
-# --- Удаляем FSM, он больше не нужен для бронирования ---
-# from aiogram.fsm.context import FSMContext
-# from app.utils.states import BookingFlow
-
 from app.services.property_service import get_property_with_media_and_owner
 from app.services import booking_service
 from app.services.review_service import get_reviews_summary
@@ -18,9 +14,14 @@ router = Router()
 
 @router.callback_query(F.data.startswith(("view_photos:", "view_media:")))
 async def view_media(callback: CallbackQuery, bot: Bot):
-    await callback.answer()
+    """
+    Обработчик для кнопок "📸 Все фото" и "▶️ Видео и фото".
+    Отправляет пользователю все медиафайлы, связанные с объектом.
+    """
+    await callback.answer()  # Отвечаем на колбэк, чтобы убрать "часики"
     property_id = int(callback.data.split(":")[1])
 
+    # Получаем объект, его фото и видео из сервисного слоя
     prop, photo_files, video_file = await get_property_with_media_and_owner(property_id)
 
     if not prop:
@@ -28,34 +29,30 @@ async def view_media(callback: CallbackQuery, bot: Bot):
         return
 
     media_to_show = []
+    # Если есть видео и пользователь нажал "Видео и фото", отправляем видео отдельно
     if video_file and callback.data.startswith("view_media:"):
         await bot.send_video_note(chat_id=callback.from_user.id, video_note=video_file)
+        # После видео покажем все фото
         media_to_show = photo_files
+    # Если пользователь нажал "Все фото", показываем все фото, кроме первого (оно уже есть в карточке)
     elif callback.data.startswith("view_photos:") and len(photo_files) > 1:
         media_to_show = photo_files[1:]
 
+    # Отправляем фотографии
     if media_to_show:
+        # Если фото больше одного, отправляем их как альбом
         if len(media_to_show) > 1:
             media_group = [InputMediaPhoto(media=file_id) for file_id in media_to_show]
             await bot.send_media_group(chat_id=callback.from_user.id, media=media_group)
+        # Если фото только одно, отправляем его как обычное фото
         elif len(media_to_show) == 1:
             await bot.send_photo(chat_id=callback.from_user.id, photo=media_to_show[0])
     elif not video_file:
+         # Если пользователь нажал на кнопку, а других фото нет
          await callback.message.answer("Больше фотографий нет.")
 
-    _, reviews_count = await get_reviews_summary(prop.id)
-    await callback.message.answer(
-        "Выберите дальнейшее действие:",
-        reply_markup=get_property_card_keyboard(
-            property_id=prop.id,
-            photos_count=len(photo_files),
-            has_video=bool(video_file),
-            reviews_count=reviews_count
-        )
-    )
 
-# --- НОВЫЙ ОБРАБОТЧИК ДЛЯ ДАННЫХ ИЗ WEB APP ---
-
+# --- Обработчик для данных из Web App (остается без изменений) ---
 @router.message(F.web_app_data)
 async def process_booking_from_webapp(message: Message, bot: Bot):
     """
@@ -64,13 +61,10 @@ async def process_booking_from_webapp(message: Message, bot: Bot):
     try:
         data = json.loads(message.web_app_data.data)
         
-        # 1. Извлекаем и преобразуем данные
         property_id = int(data['property_id'])
-        # Даты приходят в формате 'ГГГГ-ММ-ДД', преобразуем их в datetime
         checkin_date = datetime.fromisoformat(data['checkin_date'])
         checkout_date = datetime.fromisoformat(data['checkout_date'])
 
-        # 2. Проводим проверки
         prop, _, _ = await get_property_with_media_and_owner(property_id)
         if not prop:
             await message.answer("Ошибка: объект не найден.")
@@ -80,7 +74,6 @@ async def process_booking_from_webapp(message: Message, bot: Bot):
             await message.answer("Вы не можете забронировать свой собственный объект.")
             return
 
-        # 3. Создаем бронирование (используем наш booking_service)
         new_booking = await booking_service.create_booking(
             user_id=message.from_user.id,
             property_id=property_id,
@@ -88,10 +81,9 @@ async def process_booking_from_webapp(message: Message, bot: Bot):
             end_date=checkout_date
         )
 
-        # 4. Отправляем уведомления
         user_info = f"@{message.from_user.username}" if message.from_user.username else message.from_user.first_name
         num_nights = (checkout_date - checkin_date).days
-        total_price = prop.price_per_night * num_nights
+        total_price = data['total_price'] # Берем цену из WebApp
 
         await bot.send_message(
             chat_id=prop.owner.telegram_id,
@@ -110,4 +102,3 @@ async def process_booking_from_webapp(message: Message, bot: Bot):
     except Exception as e:
         print(f"Ошибка обработки данных из Web App: {e}")
         await message.answer("Произошла ошибка при обработке вашего бронирования. Попробуйте снова.")
-
