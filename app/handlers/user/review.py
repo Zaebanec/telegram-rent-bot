@@ -3,12 +3,15 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
 from app.utils.states import LeaveReview
-from app.services.review_service import add_review, get_latest_reviews
-from app.keyboards.inline_keyboards import get_rating_keyboard
+from app.services.review_service import add_review, get_latest_reviews, get_reviews_summary
+# --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Импортируем нужные сервисы и клавиатуры ---
+from app.services.property_service import get_property_with_media_and_owner
+from app.keyboards.inline_keyboards import get_rating_keyboard, get_property_card_keyboard
 
 router = Router()
 
-# --- Обработчики для оставления отзыва (остаются без изменений) ---
+# Обработчики для оставления отзыва (без изменений)
+# ... (код process_rating и process_comment)
 @router.callback_query(F.data.startswith("review:"))
 async def process_rating(callback: CallbackQuery, state: FSMContext):
     _, booking_id_str, _, rating_str = callback.data.split(":")
@@ -39,31 +42,39 @@ async def process_comment(message: Message, state: FSMContext):
     await state.clear()
 
 
-# --- Обработчик для просмотра отзывов ---
 @router.callback_query(F.data.startswith("view_reviews:"))
 async def view_reviews_handler(callback: CallbackQuery):
     """
     Обработчик для кнопки 'Читать отзывы'.
-    Получает и форматирует последние отзывы для объекта.
+    Получает отзывы, форматирует их и ВОЗВРАЩАЕТ МЕНЮ.
     """
     await callback.answer()
     property_id = int(callback.data.split(":")[1])
     
-    # Получаем последние 5 отзывов из сервисного слоя
     reviews = await get_latest_reviews(property_id, limit=5)
     
     if not reviews:
         await callback.message.answer("У этого объекта еще нет отзывов.")
-        return
+        # --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Даже если отзывов нет, вернем меню ---
+    else:
+        response_text = "<b>Последние отзывы:</b>\n\n"
+        for review in reviews:
+            stars = "⭐️" * review.rating
+            comment = f" — «{review.text}»" if review.text else ""
+            response_text += f"{stars}{comment}\n"
+            response_text += "--------------------\n"
+        await callback.message.answer(response_text)
 
-    # Форматируем отзывы в одно красивое сообщение
-    response_text = "<b>Последние отзывы:</b>\n\n"
-    for review in reviews:
-        stars = "⭐️" * review.rating
-        # Добавляем текст отзыва, если он есть
-        comment = f" — «{review.text}»" if review.text else ""
-        response_text += f"{stars}{comment}\n"
-        # Добавляем разделитель
-        response_text += "--------------------\n"
-        
-    await callback.message.answer(response_text)
+    # --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Возвращаем меню в любом случае ---
+    prop, photo_files, video_file = await get_property_with_media_and_owner(property_id)
+    _, reviews_count = await get_reviews_summary(prop.id)
+
+    await callback.message.answer(
+        text="Выберите дальнейшее действие:",
+        reply_markup=get_property_card_keyboard(
+            property_id=prop.id,
+            photos_count=len(photo_files),
+            has_video=bool(video_file),
+            reviews_count=reviews_count
+        )
+    )
