@@ -1,104 +1,80 @@
-import calendar
-from datetime import date, datetime
+import asyncio
+import logging
+import sys
+
+from aiogram import Bot, Dispatcher, F
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from aiogram.types import Message
 from aiohttp import web
-import aiohttp_cors
 
-from app.services import availability_service, booking_service, pricing_service
-from app.services.db import async_session_maker
+from app.core.settings import settings
+from app.core.commands import set_commands
+from app.core.scheduler import scheduler
+from app.handlers import main_router
+from app.web.routes import setup_routes
 
-# --- ИЗМЕНЕНИЕ ЗДЕСЬ: Новый обработчик для отдачи HTML-файла ---
-async def client_webapp_handler(request: web.Request) -> web.Response:
-    """
-    Этот обработчик отдает главный HTML-файл для клиентского Web App.
-    """
-    return web.FileResponse('app/static/index.html')
+# --- НАШ ТЕСТОВЫЙ ОБРАБОТЧИК ОСТАЕТСЯ ЗДЕСЬ ---
+async def temporary_webapp_catcher(message: Message):
+    logging.critical("="*50)
+    logging.critical("!!! WEB APP CATCHER WORKED !!!")
+    logging.critical(f"DATA RECEIVED: {message.web_app_data.data}")
+    logging.critical("="*50)
+    await message.answer("✅ **Бэкенд поймал данные!**")
 
-async def get_calendar_data(request: web.Request) -> web.Response:
-    try:
-        property_id = int(request.match_info['property_id'])
-        year = int(request.query.get('year', date.today().year))
-        month = int(request.query.get('month', date.today().month))
-    except (ValueError, KeyError):
-        return web.json_response({'error': 'Invalid or missing parameters'}, status=400)
+# --- НОВЫЕ ФУНКЦИИ ЗАПУСКА/ОСТАНОВКИ ---
+async def on_startup(bot: Bot, base_url: str, webhook_secret: str):
+    """Выполняется при старте приложения."""
+    # Устанавливаем команды меню
+    await set_commands(bot)
+    # Устанавливаем вебхук
+    await bot.set_webhook(
+        f"{base_url}/webhook",
+        secret_token=webhook_secret
+    )
+    logging.info("Webhook has been set.")
 
-    async with async_session_maker() as session:
-        prop = await pricing_service.get_property_with_price_rules(session, property_id)
-        if not prop:
-            return web.json_response({'error': 'Property not found'}, status=404)
-        base_price = prop.price_per_night
-        manual_blocks = await availability_service.get_manual_blocks(property_id)
-        manual_block_map = {block.date: block.comment for block in manual_blocks}
-        booked_dates = await booking_service.get_booked_dates_for_property(property_id)
-        days_data = []
-        days_in_month = calendar.monthrange(year, month)[1]
-        for day_num in range(1, days_in_month + 1):
-            current_date = date(year, month, day_num)
-            status = 'available'
-            comment = None
-            if current_date < date.today():
-                status = 'past'
-            elif current_date in booked_dates:
-                status = 'booked'
-            elif current_date in manual_block_map:
-                status = 'manual_block'
-                comment = manual_block_map[current_date]
-            price = None
-            if status == 'available':
-                price = await pricing_service.get_price_for_date(session, property_id, current_date, base_price)
-            days_data.append({
-                'date': current_date.strftime('%Y-%m-%d'),
-                'status': status,
-                'price': price,
-                'comment': comment
-            })
-    return web.json_response(days_data)
+async def on_shutdown(bot: Bot):
+    """Выполняется при остановке приложения."""
+    await bot.delete_webhook()
+    logging.info("Webhook has been deleted.")
 
-async def toggle_availability(request: web.Request) -> web.Response:
-    try:
-        data = await request.json()
-        property_id = int(data['property_id'])
-        target_date_str = data['date']
-        target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
-        comment = data.get('comment')
-    except Exception:
-        return web.json_response({'error': 'Invalid request body'}, status=400)
-    booked_dates = await booking_service.get_booked_dates_for_property(property_id)
-    if target_date in booked_dates:
-        return web.json_response({'error': 'Date is already booked by a client'}, status=409)
-    await availability_service.toggle_manual_availability(property_id, target_date, comment)
-    return web.json_response({'status': 'ok'})
+async def main():
+    # Настраиваем логирование
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
-async def add_price_rule(request: web.Request) -> web.Response:
-    try:
-        data = await request.json()
-        property_id = int(data['property_id'])
-        start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
-        end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
-        price = int(data['price'])
-    except Exception:
-        return web.json_response({'error': 'Invalid request body'}, status=400)
-    await pricing_service.add_price_rule(property_id, start_date, end_date, price)
-    return web.json_response({'status': 'ok'})
-
-def setup_routes(app: web.Application):
-    """Настраивает все веб-роуты с поддержкой CORS."""
-    app.router.add_static('/static/', path='app/static', name='static')
+    # Инициализируем бота и диспетчер
+    bot = Bot(
+        token=settings.BOT_TOKEN.get_secret_value(),
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
+    dp = Dispatcher()
     
-    # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем роут для нашего Web App ---
-    app.router.add_get("/webapp/client", client_webapp_handler)
-    
-    cors = aiohttp_cors.setup(app, defaults={
-        "*": aiohttp_cors.ResourceOptions(
-            allow_credentials=True, expose_headers="*",
-            allow_headers="*", allow_methods="*",
-        )
-    })
-    
-    calendar_resource = cors.add(app.router.add_resource('/api/calendar_data/{property_id}'))
-    cors.add(calendar_resource.add_route("GET", get_calendar_data))
-    
-    toggle_resource = cors.add(app.router.add_resource('/api/owner/toggle_availability'))
-    cors.add(toggle_resource.add_route("POST", toggle_availability))
-    
-    pricing_resource = cors.add(app.router.add_resource('/api/owner/price_rule'))
-    cors.add(pricing_resource.add_route("POST", add_price_rule))
+    # --- РЕГИСТРАЦИЯ РОУТЕРОВ ---
+    # Регистрируем тестовый обработчик первым
+    dp.message.register(temporary_webapp_catcher, F.web_app_data)
+    # Регистрируем все остальные роутеры
+    dp.include_router(main_router)
+
+    # Создаем приложение aiohttp
+    app = web.Application()
+    # Сохраняем в контекст приложения нужные нам объекты
+    app["bot"] = bot
+    app["dp"] = dp
+    app["webhook_secret"] = settings.WEBHOOK_SECRET.get_secret_value()
+
+    # Регистрируем обработчики старта и остановки
+    app.on_startup.append(lambda _: on_startup(bot, settings.WEB_APP_BASE_URL, settings.WEBHOOK_SECRET.get_secret_value()))
+    app.on_shutdown.append(lambda _: on_shutdown(bot))
+
+    # Настраиваем роуты
+    setup_routes(app)
+
+    # Запускаем планировщик
+    scheduler.start()
+
+    # Запускаем веб-приложение
+    web.run_app(app, host="0.0.0.0", port=8080)
+
+if __name__ == "__main__":
+    main()

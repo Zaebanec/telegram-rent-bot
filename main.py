@@ -2,58 +2,79 @@ import asyncio
 import logging
 import sys
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import Message
 from aiohttp import web
 
 from app.core.settings import settings
 from app.core.commands import set_commands
 from app.core.scheduler import scheduler
 from app.handlers import main_router
-from app.web.routes import setup_routes  # <-- Наш новый импорт
+from app.web.routes import setup_routes
 
-async def start_bot(dp: Dispatcher, bot: Bot):
-    """Запускает процесс поллинга бота."""
+# --- НАШ ТЕСТОВЫЙ ОБРАБОТЧИК ОСТАЕТСЯ ЗДЕСЬ ---
+async def temporary_webapp_catcher(message: Message):
+    logging.critical("="*50)
+    logging.critical("!!! WEB APP CATCHER WORKED !!!")
+    logging.critical(f"DATA RECEIVED: {message.web_app_data.data}")
+    logging.critical("="*50)
+    await message.answer("✅ **Бэкенд поймал данные!**")
+
+# --- НОВЫЕ ФУНКЦИИ ЗАПУСКА/ОСТАНОВКИ ---
+async def on_startup(bot: Bot, base_url: str, webhook_secret: str):
+    """Выполняется при старте приложения."""
+    # Устанавливаем команды меню
     await set_commands(bot)
-    dp.include_router(main_router)
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+    # Устанавливаем вебхук
+    await bot.set_webhook(
+        f"{base_url}/webhook",
+        secret_token=webhook_secret
+    )
+    logging.info("Webhook has been set.")
 
-async def start_web_server():
-    """Запускает веб-сервер для API."""
-    app = web.Application()
-    setup_routes(app) # Настраиваем роуты для API
-    runner = web.AppRunner(app)
-    await runner.setup()
-    # Запускаем на порту 8080, как требует большинство хостингов
-    site = web.TCPSite(runner, '0.0.0.0', 8080) 
-    await site.start()
-    logging.info("Web server started on http://0.0.0.0:8080")
-    # Бесконечно ждем, пока сервер работает
-    while True:
-        await asyncio.sleep(3600)
+async def on_shutdown(bot: Bot):
+    """Выполняется при остановке приложения."""
+    await bot.delete_webhook()
+    logging.info("Webhook has been deleted.")
 
 async def main():
+    # Настраиваем логирование
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+
+    # Инициализируем бота и диспетчер
     bot = Bot(
         token=settings.BOT_TOKEN.get_secret_value(),
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher()
     
+    # --- РЕГИСТРАЦИЯ РОУТЕРОВ ---
+    # Регистрируем тестовый обработчик первым
+    dp.message.register(temporary_webapp_catcher, F.web_app_data)
+    # Регистрируем все остальные роутеры
+    dp.include_router(main_router)
+
+    # Создаем приложение aiohttp
+    app = web.Application()
+    # Сохраняем в контекст приложения нужные нам объекты
+    app["bot"] = bot
+    app["dp"] = dp
+    app["webhook_secret"] = settings.WEBHOOK_SECRET.get_secret_value()
+
+    # Регистрируем обработчики старта и остановки
+    app.on_startup.append(lambda _: on_startup(bot, settings.WEB_APP_BASE_URL, settings.WEBHOOK_SECRET.get_secret_value()))
+    app.on_shutdown.append(lambda _: on_shutdown(bot))
+
+    # Настраиваем роуты
+    setup_routes(app)
+
     # Запускаем планировщик
     scheduler.start()
-    
-    # Запускаем бота и веб-сервер параллельно
-    await asyncio.gather(
-        start_bot(dp, bot),
-        start_web_server()
-    )
+
+    # Запускаем веб-приложение
+    web.run_app(app, host="0.0.0.0", port=8080)
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logging.info("App stopped by admin.")
-
+    main()

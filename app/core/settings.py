@@ -19,7 +19,11 @@ class Settings(BaseSettings):
 
     # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем новую переменную ---
     WEB_APP_BASE_URL: str
-
+class Settings(BaseSettings):
+    # ...
+    WEB_APP_BASE_URL: str
+    # --- НОВАЯ ПЕРЕМЕННАЯ ---
+    WEBHOOK_SECRET: SecretStr
     @property
     def DATABASE_URL_asyncpg(self) -> str:
         return (f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD.get_secret_value()}"
