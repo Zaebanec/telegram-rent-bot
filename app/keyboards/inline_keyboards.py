@@ -1,13 +1,14 @@
 from datetime import datetime, timedelta
 from typing import List
-from aiogram.types import InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 from aiogram_calendar import SimpleCalendar
-from aiogram.types import WebAppInfo
-from app.core.constants import DISTRICTS, PROPERTY_TYPES, ROOM_OPTIONS, GUEST_OPTIONS
 
-# --- ОБЩИЕ КЛАВИАТУРЫ ---
+from app.core.constants import DISTRICTS, PROPERTY_TYPES, ROOM_OPTIONS, GUEST_OPTIONS
+# --- ИЗМЕНЕНИЕ ЗДЕСЬ: Импортируем наши настройки ---
+from app.core.settings import settings
+
 def get_main_menu():
     builder = InlineKeyboardBuilder()
     builder.button(text="🔍 Найти жилье", callback_data="main_menu:search")
@@ -16,12 +17,10 @@ def get_main_menu():
     builder.adjust(1)
     return builder.as_markup()
 
-# --- КЛАВИАТУРЫ ДЛЯ ПОЛЬЗОВАТЕЛЯ (АРЕНДАТОРА) ---
 def get_property_card_keyboard(property_id: int, photos_count: int = 0, has_video: bool = False, reviews_count: int = 0):
     builder = InlineKeyboardBuilder()
     total_media_count = photos_count + (1 if has_video else 0)
 
-    # Кнопки для медиа и отзывов, если они есть
     if has_video:
         builder.button(text=f"▶️ Видео и фото ({total_media_count})", callback_data=f"view_media:{property_id}")
     elif photos_count > 1:
@@ -30,15 +29,12 @@ def get_property_card_keyboard(property_id: int, photos_count: int = 0, has_vide
     if reviews_count > 0:
         builder.button(text=f"💬 Читать отзывы ({reviews_count})", callback_data=f"view_reviews:{property_id}")
     
-    # --- Кнопки для бронирования ---
-    # ИСПРАВЛЕНИЕ: Вставляем новую ссылку
-    web_app_url = f"https://zaebanec.github.io/telegram_bot/?property_id={property_id}"
+    # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Формируем правильный URL из настроек ---
+    web_app_url = f"{settings.WEB_APP_BASE_URL}/webapp/client?property_id={property_id}"
 
-    # Кнопка для нового Web App календаря
     builder.button(text="📅 Забронировать", web_app=WebAppInfo(url=web_app_url))
     
     builder.adjust(1)
-    
     return builder.as_markup()
 
 def get_rating_keyboard(booking_id: int):
@@ -49,16 +45,10 @@ def get_rating_keyboard(booking_id: int):
     return builder.as_markup()
 
 async def get_calendar():
-    """
-    Возвращает стандартный календарь. Этот подход самый надежный
-    для навигации по месяцам.
-    """
     calendar = SimpleCalendar()
     calendar.set_dates_range(datetime.now(), datetime.now() + timedelta(days=365))
     return await calendar.start_calendar()
 
-
-# --- КЛАВИАТУРЫ ДЛЯ ВЛАДЕЛЬЦА И ОБЩИЕ ДЛЯ ДИАЛОГОВ ---
 def get_region_keyboard():
     builder = InlineKeyboardBuilder()
     for region in DISTRICTS.keys():
@@ -117,7 +107,6 @@ def get_edit_property_keyboard(property_id: int):
     builder = InlineKeyboardBuilder()
     builder.button(text="Название", callback_data=f"edit_prop:title:{property_id}")
     builder.button(text="Описание", callback_data=f"edit_prop:description:{property_id}")
-    builder.button(text="Локацию", callback_data=f"edit_prop:location:{property_id}")
     builder.button(text="Адрес", callback_data=f"edit_prop:address:{property_id}")
     builder.button(text="Кол-во комнат", callback_data=f"edit_prop:rooms:{property_id}")
     builder.button(text="Цену", callback_data=f"edit_prop:price:{property_id}")
@@ -125,12 +114,12 @@ def get_edit_property_keyboard(property_id: int):
     builder.button(text="Тип объекта", callback_data=f"edit_prop:type:{property_id}")
     builder.button(text="📸 Управлять фото/видео", callback_data=f"edit_prop:media:{property_id}")
     
-    # ИСПРАВЛЕНИЕ: Вставляем новую ссылку
-    owner_web_app_url = f"https://zaebanec.github.io/telegram_bot/owner.html?property_id={property_id}"
+    # --- ИЗМЕНЕНИЕ ЗДЕСЬ: URL для Web App владельца ---
+    owner_web_app_url = f"{settings.WEB_APP_BASE_URL}/static/owner.html?property_id={property_id}"
     builder.button(text="🗓️ Управлять доступностью", web_app=WebAppInfo(url=owner_web_app_url))
     
     builder.button(text="🔙 Назад к списку", callback_data="back_to_my_properties")
-    builder.adjust(2, 2, 2, 2, 2, 1)
+    builder.adjust(2, 2, 2, 1, 1, 1) # Немного поправил верстку
     return builder.as_markup()
 
 def get_delete_one_media_keyboard(media_id: int):

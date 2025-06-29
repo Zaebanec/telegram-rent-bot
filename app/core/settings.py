@@ -6,9 +6,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
 
     BOT_TOKEN: SecretStr
-
-    # --- НАШЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
-    # Pydantic автоматически преобразует строку "id1,id2" в список чисел
     ADMIN_IDS: list[int]
 
     POSTGRES_USER: str
@@ -19,6 +16,9 @@ class Settings(BaseSettings):
 
     REDIS_HOST: str
     REDIS_PORT: int
+
+    # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем новую переменную ---
+    WEB_APP_BASE_URL: str
 
     @property
     def DATABASE_URL_asyncpg(self) -> str:
