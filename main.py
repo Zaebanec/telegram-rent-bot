@@ -14,7 +14,7 @@ from app.core.scheduler import scheduler
 from app.handlers import main_router
 from app.web.routes import setup_routes
 
-# --- НАШ ТЕСТОВЫЙ ОБРАБОТЧИК ОСТАЕТСЯ ЗДЕСЬ ---
+# --- НАШ ТЕСТОВЫЙ ОБРАБОТЧИК ---
 async def temporary_webapp_catcher(message: Message):
     logging.critical("="*50)
     logging.critical("!!! WEB APP CATCHER WORKED !!!")
@@ -22,24 +22,28 @@ async def temporary_webapp_catcher(message: Message):
     logging.critical("="*50)
     await message.answer("✅ **Бэкенд поймал данные!**")
 
-# --- НОВЫЕ ФУНКЦИИ ЗАПУСКА/ОСТАНОВКИ ---
-async def on_startup(bot: Bot, base_url: str, webhook_secret: str):
+# --- ФУНКЦИИ ЗАПУСКА/ОСТАНОВКИ ---
+async def on_startup(app: web.Application):
     """Выполняется при старте приложения."""
-    # Устанавливаем команды меню
+    bot: Bot = app["bot"]
+    base_url = app["base_url"]
+    webhook_secret = app["webhook_secret"]
+    
     await set_commands(bot)
-    # Устанавливаем вебхук
     await bot.set_webhook(
         f"{base_url}/webhook",
         secret_token=webhook_secret
     )
     logging.info("Webhook has been set.")
 
-async def on_shutdown(bot: Bot):
+async def on_shutdown(app: web.Application):
     """Выполняется при остановке приложения."""
+    bot: Bot = app["bot"]
     await bot.delete_webhook()
     logging.info("Webhook has been deleted.")
 
-async def main():
+# --- ИЗМЕНЕНИЕ ЗДЕСЬ: Упрощаем точку входа ---
+if __name__ == "__main__":
     # Настраиваем логирование
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
@@ -50,7 +54,6 @@ async def main():
     )
     dp = Dispatcher()
     
-    # --- РЕГИСТРАЦИЯ РОУТЕРОВ ---
     # Регистрируем тестовый обработчик первым
     dp.message.register(temporary_webapp_catcher, F.web_app_data)
     # Регистрируем все остальные роутеры
@@ -58,14 +61,16 @@ async def main():
 
     # Создаем приложение aiohttp
     app = web.Application()
+    
     # Сохраняем в контекст приложения нужные нам объекты
     app["bot"] = bot
     app["dp"] = dp
+    app["base_url"] = settings.WEB_APP_BASE_URL
     app["webhook_secret"] = settings.WEBHOOK_SECRET.get_secret_value()
 
     # Регистрируем обработчики старта и остановки
-    app.on_startup.append(lambda _: on_startup(bot, settings.WEB_APP_BASE_URL, settings.WEBHOOK_SECRET.get_secret_value()))
-    app.on_shutdown.append(lambda _: on_shutdown(bot))
+    app.on_startup.append(on_startup)
+    app.on_shutdown.append(on_shutdown)
 
     # Настраиваем роуты
     setup_routes(app)
@@ -73,8 +78,8 @@ async def main():
     # Запускаем планировщик
     scheduler.start()
 
-    # Запускаем веб-приложение
-    web.run_app(app, host="0.0.0.0", port=8080)
-
-if __name__ == "__main__":
-    main()
+    # Запускаем веб-приложение. Это блокирующая операция, она сама управляет циклом.
+    try:
+        web.run_app(app, host="0.0.0.0", port=8080)
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("Bot stopped!")
