@@ -1,8 +1,8 @@
 from aiogram import F, Router
 from aiogram.filters import StateFilter, Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, KeyboardButton, InputMediaPhoto
-# --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Добавляем недостающий импорт ---
+from aiogram.types import (Message, CallbackQuery, ReplyKeyboardRemove, 
+                           KeyboardButton, InputMediaPhoto, InlineKeyboardButton)
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 
 from app.services.property_service import get_all_properties
@@ -98,16 +98,14 @@ async def search_select_region(callback: CallbackQuery, state: FSMContext):
     region = callback.data.split(":")[1]
     await state.update_data(region=region)
     
-    # Если это Куршская коса, там нет под-районов, переходим сразу к цене
     if region == "Куршская коса":
-        await state.update_data(districts=[region]) # Сохраняем как список из одного элемента
+        await state.update_data(districts=[region])
         await callback.message.answer(
             "Район выбран. Укажите максимальную цену за ночь (например, 5000) или пропустите этот шаг.",
             reply_markup=get_skip_keyboard()
         )
         await state.set_state(SearchProperties.price)
     else:
-        # Для других регионов показываем выбор районов
         await callback.message.edit_text("Уточните локацию:", reply_markup=get_district_keyboard(region))
         await state.set_state(SearchProperties.district)
     await callback.answer()
@@ -142,7 +140,7 @@ async def search_select_district(callback: CallbackQuery, state: FSMContext):
     district_index = int(district_index_str)
     district_name = DISTRICTS[region][district_index]
     
-    await state.update_data(districts=[district_name]) # Сохраняем как список
+    await state.update_data(districts=[district_name])
     
     await callback.message.edit_text("Район выбран.")
     await callback.message.answer(
@@ -161,16 +159,13 @@ async def search_by_price(message: Message, state: FSMContext):
             return
         await state.update_data(max_price=int(message.text))
     
-    # Убираем Reply-клавиатуру и предлагаем инлайн-клавиатуру для следующего шага
     await message.answer(
         "Хорошо. На какое количество гостей ищете жилье?", 
         reply_markup=ReplyKeyboardRemove()
     )
     
-    # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-    # Создаем клавиатуру с выбором гостей и добавляем к ней кнопку "Пропустить"
     builder = InlineKeyboardBuilder.from_markup(get_guests_keyboard())
-    builder.row(KeyboardButton(text="Пропустить", callback_data="skip_guests_filter"))
+    builder.row(InlineKeyboardButton(text="Пропустить", callback_data="skip_guests_filter"))
     await message.answer("Выберите количество гостей или пропустите:", reply_markup=builder.as_markup())
 
     await state.set_state(SearchProperties.guests)
@@ -191,7 +186,6 @@ async def search_by_guests(callback: CallbackQuery, state: FSMContext):
     
     await callback.message.edit_text(f"Выбрано гостей: {guests}. Идет поиск...")
     
-    # Запускаем финальную функцию поиска и вывода результатов
     await show_properties_by_filter(callback.message, state)
     await callback.answer()
 
