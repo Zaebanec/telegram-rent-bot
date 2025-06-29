@@ -73,7 +73,8 @@ async def process_booking_from_webapp(message: Message, bot: Bot):
         property_id = int(data['property_id'])
         checkin_date = datetime.fromisoformat(data['checkin_date'])
         checkout_date = datetime.fromisoformat(data['checkout_date'])
-
+        total_price = data['total_price']
+        
         prop, _, _ = await get_property_with_media_and_owner(property_id)
         if not prop:
             await message.answer("Ошибка: объект не найден.")
