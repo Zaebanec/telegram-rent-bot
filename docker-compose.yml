@@ -1,0 +1,31 @@
+services:
+  bot:
+    build: .
+    env_file: .env
+    volumes:
+      - .:/app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+      - redis
+    restart: always
+
+  db:
+    image: postgres:16-alpine
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+    # В продакшен-среде не рекомендуется открывать порт базы данных наружу.
+    # Для локальной отладки с помощью IDE или клиента БД можно раскомментировать эту строку.
+    # ports:
+    #   - "5433:5432"
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+
+volumes:
+  postgres_data:

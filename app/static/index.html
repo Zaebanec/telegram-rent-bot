@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Бронирование</title>
+    <style>
+        :root {
+            --tg-bg: var(--tg-theme-bg-color, #ffffff);
+            --tg-text: var(--tg-theme-text-color, #222222);
+            --tg-hint: var(--tg-theme-hint-color, #999999);
+            --tg-button: var(--tg-theme-button-color, #2481cc);
+            --tg-button-text: var(--tg-theme-button-text-color, #ffffff);
+            --tg-secondary-bg: var(--tg-theme-secondary-bg-color, #f1f1f1);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--tg-bg);
+            color: var(--tg-text);
+            margin: 0;
+            padding: 15px;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            /* Разрешаем скроллинг для всего тела страницы */
+        }
+        .calendar-month-container {
+            margin-bottom: 25px;
+        }
+        .calendar-header {
+            text-align: center;
+            padding: 10px 5px;
+        }
+        .calendar-month-year {
+            font-weight: 600;
+            font-size: 18px;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+        .calendar-day, .calendar-weekday {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border-radius: 50%;
+        }
+        .calendar-weekday {
+             height: 30px;
+             color: var(--tg-hint);
+             font-size: 12px;
+        }
+        .calendar-day {
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: background-color 0.2s, color 0.2s;
+            flex-direction: column;
+            padding: 2px 0;
+            height: 44px;
+        }
+        .day-number {
+            font-size: 15px;
+            font-weight: 500;
+        }
+        .day-price {
+            font-size: 9px;
+            color: var(--tg-hint);
+        }
+        .calendar-day:not(.disabled):hover {
+            background-color: var(--tg-secondary-bg);
+        }
+        .calendar-day.selected, .calendar-day.start-range, .calendar-day.end-range {
+            background-color: var(--tg-button);
+            color: var(--tg-button-text);
+            border-color: var(--tg-button);
+        }
+        .calendar-day.selected .day-price, .calendar-day.start-range .day-price, .calendar-day.end-range .day-price {
+            color: var(--tg-button-text);
+        }
+        .calendar-day.in-range {
+            background-color: var(--tg-secondary-bg);
+            color: var(--tg-text);
+            border-radius: 0;
+        }
+        .calendar-day.disabled {
+            color: var(--tg-hint);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .calendar-day.disabled .day-number {
+            text-decoration: line-through;
+        }
+        .calendar-day.padding {
+            visibility: hidden;
+        }
+        .sticky-footer {
+            position: sticky;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            background-color: var(--tg-bg);
+            box-shadow: 0 -5px 15px -5px rgba(0,0,0,0.1);
+        }
+        .info-panel {
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            background-color: var(--tg-secondary-bg);
+            margin-bottom: 15px;
+        }
+        #confirm-button {
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 16px;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background-color: var(--tg-button);
+            color: var(--tg-button-text);
+        }
+        #confirm-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="calendar-body">
+        <!-- Сюда будут добавляться месяцы -->
+    </div>
+
+    <div class="sticky-footer">
+        <div class="info-panel" id="info-panel">Загрузка...</div>
+        <button id="confirm-button" disabled>Подтвердить</button>
+    </div>
+
+
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+
+            const calendarBody = document.getElementById('calendar-body');
+            const infoPanel = document.getElementById('info-panel');
+            const confirmButton = document.getElementById('confirm-button');
+            
+            let currentMonth = new Date().getMonth();
+            let currentYear = new Date().getFullYear();
+            let calendarData = {}; 
+            let checkinDate = null;
+            let checkoutDate = null;
+            let isLoading = false; // Флаг для предотвращения множественных загрузок
+
+            const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+            const dayNames = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+
+            function fetchAndRenderMonth(year, month) {
+                if (isLoading) return;
+                isLoading = true;
+
+                const API_BASE_URL = "https://4ec5-162-19-62-155.ngrok-free.app";
+                const urlParams = new URLSearchParams(window.location.search);
+                const propertyId = urlParams.get('property_id');
+                if (!propertyId) {
+                    infoPanel.textContent = "Ошибка: не найден ID объекта.";
+                    return;
+                }
+
+                const fetchUrl = `${API_BASE_URL}/api/calendar_data/${propertyId}?year=${year}&month=${month + 1}`;
+                
+                fetch(fetchUrl, { headers: { 'ngrok-skip-browser-warning': 'true' } })
+                    .then(response => {
+                        if (!response.ok) throw new Error('Ошибка сети');
+                        return response.json();
+                    })
+                    .then(data => {
+                        data.forEach(dayInfo => {
+                            calendarData[dayInfo.date] = {
+                                status: dayInfo.status,
+                                price: dayInfo.price
+                            };
+                        });
+                        renderMonth(year, month);
+                        isLoading = false;
+                        updateUI();
+                    })
+                    .catch(error => {
+                        console.error('Fetch Error:', error);
+                        infoPanel.textContent = "Ошибка загрузки данных.";
+                        isLoading = false;
+                    });
+            }
+            
+            function renderMonth(year, month) {
+                const monthContainer = document.createElement('div');
+                monthContainer.className = 'calendar-month-container';
+
+                // Заголовок месяца
+                const header = document.createElement('div');
+                header.className = 'calendar-header';
+                const monthYearLabel = document.createElement('span');
+                monthYearLabel.className = 'calendar-month-year';
+                monthYearLabel.textContent = `${monthNames[month]} ${year}`;
+                header.appendChild(monthYearLabel);
+                monthContainer.appendChild(header);
+
+                // Дни недели
+                const weekdaysGrid = document.createElement('div');
+                weekdaysGrid.className = 'calendar-grid';
+                dayNames.forEach(day => {
+                    const dayEl = document.createElement('div');
+                    dayEl.className = 'calendar-weekday';
+                    dayEl.textContent = day;
+                    weekdaysGrid.appendChild(dayEl);
+                });
+                monthContainer.appendChild(weekdaysGrid);
+
+                // Сетка дат
+                const calendarGrid = document.createElement('div');
+                calendarGrid.className = 'calendar-grid';
+                
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const startingDay = (firstDayOfMonth === 0) ? 6 : firstDayOfMonth - 1;
+
+                for (let i = 0; i < startingDay; i++) {
+                    const paddingDay = document.createElement('div');
+                    paddingDay.className = 'calendar-day padding';
+                    calendarGrid.appendChild(paddingDay);
+                }
+
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayEl = document.createElement('div');
+                    dayEl.className = 'calendar-day';
+                    
+                    const dayNumber = document.createElement('div');
+                    dayNumber.className = 'day-number';
+                    dayNumber.textContent = day;
+                    dayEl.appendChild(dayNumber);
+
+                    const currentDate = new Date(year, month, day);
+                    const currentDateStr = currentDate.toISOString().split('T')[0];
+                    const dayData = calendarData[currentDateStr];
+
+                    if (dayData) {
+                        if (dayData.status !== 'available') {
+                            dayEl.classList.add('disabled');
+                        } else {
+                            dayEl.dataset.date = currentDateStr;
+                            dayEl.addEventListener('click', onDayClick);
+
+                            const dayPrice = document.createElement('div');
+                            dayPrice.className = 'day-price';
+                            dayPrice.textContent = dayData.price ? `${dayData.price}` : '';
+                            dayEl.appendChild(dayPrice);
+                        }
+                    }
+                    
+                    if (checkinDate && checkoutDate) {
+                        const checkin = new Date(checkinDate);
+                        const checkout = new Date(checkoutDate);
+                        if (currentDate >= checkin && currentDate <= checkout) {
+                            dayEl.classList.add('in-range');
+                            if (currentDate.getTime() === checkin.getTime()) dayEl.classList.add('start-range');
+                            if (currentDate.getTime() === checkout.getTime()) dayEl.classList.add('end-range');
+                        }
+                    } else if (checkinDate && currentDateStr === checkinDate) {
+                        dayEl.classList.add('selected');
+                    }
+                    
+                    calendarGrid.appendChild(dayEl);
+                }
+                monthContainer.appendChild(calendarGrid);
+                calendarBody.appendChild(monthContainer);
+            }
+            
+            function onDayClick(event) {
+                const selectedDateStr = event.currentTarget.dataset.date;
+                
+                if (!checkinDate || (checkinDate && checkoutDate)) {
+                    checkinDate = selectedDateStr;
+                    checkoutDate = null;
+                } else {
+                    const selectedD = new Date(selectedDateStr);
+                    const checkinD = new Date(checkinDate);
+                    
+                    if (selectedD > checkinD) {
+                        checkoutDate = selectedDateStr;
+                    } else {
+                        checkinDate = selectedDateStr;
+                        checkoutDate = null;
+                    }
+                }
+                updateUI();
+            }
+
+            function updateAllRenderedMonths() {
+                const existingMonths = calendarBody.querySelectorAll('.calendar-month-container');
+                existingMonths.forEach(month => month.remove());
+                
+                // Перерисовываем все загруженные месяцы с обновленными стилями
+                for (const dateStr in calendarData) {
+                    const d = new Date(dateStr);
+                    // Логика, чтобы не рисовать один и тот же месяц дважды
+                    if (document.querySelector(`[data-year='${d.getFullYear()}'][data-month='${d.getMonth()}']`) === null) {
+                         renderMonth(d.getFullYear(), d.getMonth());
+                         const monthDiv = calendarBody.lastChild;
+                         monthDiv.dataset.year = d.getFullYear();
+                         monthDiv.dataset.month = d.getMonth();
+                    }
+                }
+            }
+
+            function updateUI() {
+                updateAllRenderedMonths();
+                if (!checkinDate) {
+                    infoPanel.textContent = 'Выберите дату заезда';
+                    confirmButton.disabled = true;
+                } else if (!checkoutDate) {
+                    infoPanel.textContent = `Заезд: ${formatDate(checkinDate)}. Выберите дату выезда.`;
+                    confirmButton.disabled = true;
+                } else {
+                    const { total, nights } = calculateTotal();
+                    infoPanel.textContent = `Итого за ${nights} ночей: ${total} руб.`;
+                    confirmButton.disabled = false;
+                }
+            }
+            
+            function calculateTotal() {
+                let total = 0;
+                let nights = 0;
+                const start = new Date(checkinDate);
+                const end = new Date(checkoutDate);
+
+                for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+                    const dateStr = d.toISOString().split('T')[0];
+                    if (calendarData[dateStr] && calendarData[dateStr].price) {
+                        total += calendarData[dateStr].price;
+                        nights++;
+                    }
+                }
+                return { total, nights };
+            }
+
+            function formatDate(dateStr) {
+                const [year, month, day] = dateStr.split('-');
+                return `${day}.${month}`;
+            }
+
+            window.addEventListener('scroll', () => {
+                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
+                   currentMonth++;
+                   if (currentMonth > 11) {
+                       currentMonth = 0;
+                       currentYear++;
+                   }
+                   fetchAndRenderMonth(currentYear, currentMonth);
+                }
+            });
+
+            confirmButton.addEventListener('click', () => {
+                if (checkinDate && checkoutDate) {
+                    const { total } = calculateTotal();
+                    const dataToSend = {
+                        property_id: new URLSearchParams(window.location.search).get('property_id'),
+                        checkin_date: checkinDate,
+                        checkout_date: checkoutDate,
+                        total_price: total
+                    };
+                    tg.sendData(JSON.stringify(dataToSend));
+                    tg.close();
+                }
+            });
+
+            function main() {
+                // Загружаем первые 3 месяца при старте
+                fetchAndRenderMonth(currentYear, currentMonth);
+                let nextMonth = currentMonth + 1, nextYear = currentYear;
+                if (nextMonth > 11) { nextMonth = 0; nextYear++; }
+                fetchAndRenderMonth(nextYear, nextMonth);
+            }
+
+            main();
+        });
+    </script>
+</body>
+</html>

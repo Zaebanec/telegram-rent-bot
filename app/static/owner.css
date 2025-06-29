@@ -1,0 +1,195 @@
+/* --- ОБЩИЕ СТИЛИ --- */
+:root {
+    /* Цветовая палитра, основанная на теме Telegram */
+    --tg-bg-color: var(--tg-theme-bg-color, #ffffff);
+    --tg-text-color: var(--tg-theme-text-color, #000000);
+    --tg-hint-color: var(--tg-theme-hint-color, #999999);
+    --tg-link-color: var(--tg-theme-link-color, #2481cc);
+    --tg-button-color: var(--tg-theme-button-color, #2481cc);
+    --tg-button-text-color: var(--tg-theme-button-text-color, #ffffff);
+    
+    /* Дополнительные цвета для статусов */
+    --color-available: #e0ffe0; /* Светло-зеленый */
+    --color-booked: #f0f0f0; /* Серый */
+    --color-manual-block: #ffe0e0; /* Светло-красный */
+    --color-past: #e9e9e9; /* Светло-серый */
+    --color-selected: #a0c4ff; /* Ярко-синий */
+    --color-border: #dddddd;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--tg-bg-color);
+    color: var(--tg-text-color);
+    margin: 0;
+    padding: 15px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- КОНТЕЙНЕР ПРИЛОЖЕНИЯ --- */
+#calendar-app {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    background: var(--tg-bg-color);
+    border-radius: 12px;
+}
+
+/* --- ЗАГОЛОВОК КАЛЕНДАРЯ --- */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    margin-bottom: 10px;
+}
+
+#month-year {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--tg-text-color);
+}
+
+.nav-button {
+    background-color: transparent;
+    border: none;
+    color: var(--tg-link-color);
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 5px 15px;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+.nav-button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* --- СЕТКА КАЛЕНДАРЯ --- */
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+
+.day-name {
+    font-weight: 600;
+    font-size: 0.9em;
+    text-align: center;
+    color: var(--tg-hint-color);
+    padding-bottom: 10px;
+}
+
+.day-cell {
+    position: relative;
+    aspect-ratio: 1 / 1; /* Делает ячейки квадратными */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.1s, background-color 0.2s;
+    overflow: hidden; /* Скрывает все, что выходит за пределы ячейки */
+}
+
+.day-cell:hover {
+    transform: scale(1.05);
+}
+
+.day-number {
+    font-size: 1em;
+    font-weight: 500;
+}
+
+.day-price {
+    font-size: 0.7em;
+    color: var(--tg-hint-color);
+    margin-top: 2px;
+}
+
+.day-comment {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #db4437;
+}
+
+/* --- СТАТУСЫ ДНЕЙ --- */
+.day-cell.available { background-color: var(--color-available); }
+.day-cell.booked { background-color: var(--color-booked); color: var(--tg-hint-color); cursor: not-allowed; }
+.day-cell.manual-block { background-color: var(--color-manual-block); }
+.day-cell.past { background-color: var(--color-past); color: var(--tg-hint-color); cursor: not-allowed; }
+.day-cell.selected { background-color: var(--color-selected); border-color: var(--tg-link-color); }
+.day-cell.empty { background-color: transparent; border: none; cursor: default; }
+.day-cell.empty:hover { transform: none; }
+
+/* --- ЛЕГЕНДА --- */
+.legend {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 20px;
+    font-size: 0.8em;
+    color: var(--tg-hint-color);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+}
+
+.color-box {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    margin-right: 5px;
+    border: 1px solid var(--color-border);
+}
+.color-box.available { background-color: var(--color-available); }
+.color-box.booked { background-color: var(--color-booked); }
+.color-box.manual-block { background-color: var(--color-manual-block); }
+.color-box.selected { background-color: var(--color-selected); }
+
+
+/* --- ИНДИКАТОР ЗАГРУЗКИ --- */
+.loader-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(128, 128, 128, 0.5); /* Полупрозрачный фон */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    visibility: hidden; /* Скрыт по умолчанию */
+    opacity: 0;
+    transition: opacity 0.3s, visibility 0.3s;
+}
+
+.loader-overlay.visible {
+    visibility: visible;
+    opacity: 1;
+}
+
+.loader-spinner {
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid var(--tg-button-color);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
