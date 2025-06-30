@@ -13,8 +13,8 @@ from alembic import context
 sys.path.insert(0, dirname(dirname(abspath(__file__))))
 
 # 1. Импортируем наши настройки и базовую модель из SQLAlchemy
-from app.core.settings import settings
-from app.models.base import Base # Мы создадим этот файл на следующем шаге
+from src.core.settings import settings
+from src.models.base import Base # Мы создадим этот файл на следующем шаге
 
 # --- НАШИ ДОБАВЛЕНИЯ ЗАКАНЧИВАЮТСЯ ЗДЕСЬ ---
 

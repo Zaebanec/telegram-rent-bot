@@ -536,11 +536,11 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiohttp import web
 
-from app.core.settings import settings
-from app.core.commands import set_commands
-from app.core.scheduler import scheduler
-from app.handlers import main_router
-from app.web.routes import setup_routes  # <-- Наш новый импорт
+from src.core.settings import settings
+from src.core.commands import set_commands
+from src.core.scheduler import scheduler
+from src.handlers import main_router
+from src.web.routes import setup_routes  # <-- Наш новый импорт
 
 async def start_bot(dp: Dispatcher, bot: Bot):
     """Запускает процесс поллинга бота."""
@@ -695,9 +695,9 @@ from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
-from app.core.settings import settings
+from src.core.settings import settings
 # --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Указываем новый, правильный путь к файлу ---
-from app.keyboards.inline_keyboards import get_rating_keyboard
+from src.keyboards.inline_keyboards import get_rating_keyboard
 
 jobstores = {
     'default': SQLAlchemyJobStore(url=settings.DATABASE_URL_psycopg)
@@ -728,7 +728,7 @@ async def request_review(bot_token: str, chat_id: int, booking_id: int, property
 from aiogram import Bot
 from aiogram.types import BotCommand, BotCommandScopeChat, BotCommandScopeDefault
 
-from app.core.settings import settings
+from src.core.settings import settings
 
 # Добавляем /help в список для всех пользователей
 user_commands = [
@@ -768,8 +768,8 @@ from aiohttp import web
 import json
 import aiohttp_cors
 
-from app.services import availability_service, booking_service, pricing_service
-from app.services.db import async_session_maker
+from src.services import availability_service, booking_service, pricing_service
+from src.services.db import async_session_maker
 
 async def get_calendar_data(request: web.Request) -> web.Response:
     """API для получения данных для календарей."""
@@ -888,7 +888,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 from aiogram_calendar import SimpleCalendar
 from aiogram.types import WebAppInfo
-from app.core.constants import DISTRICTS, PROPERTY_TYPES, ROOM_OPTIONS, GUEST_OPTIONS
+from src.core.constants import DISTRICTS, PROPERTY_TYPES, ROOM_OPTIONS, GUEST_OPTIONS
 
 # --- ОБЩИЕ КЛАВИАТУРЫ ---
 def get_main_menu():
@@ -2325,11 +2325,11 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
 # --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Обновляем импорты ---
-from app.services.property_service import set_property_verified
-from app.services.booking_service import update_booking_status, get_booking_with_details
-from app.services.user_service import set_user_role
-from app.core.settings import settings
-from app.core.scheduler import scheduler, request_review
+from src.services.property_service import set_property_verified
+from src.services.booking_service import update_booking_status, get_booking_with_details
+from src.services.user_service import set_user_role
+from src.core.settings import settings
+from src.core.scheduler import scheduler, request_review
 
 router = Router()
 # Фильтр гарантирует, что все обработчики в этом файле будут работать только для админов
@@ -2473,16 +2473,16 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 
-from app.utils.states import AddProperty
-from app.services.user_service import get_user
-from app.services.property_service import add_property
-from app.services.media_service import add_photos_to_property, add_video_note_to_property
+from src.utils.states import AddProperty
+from src.services.user_service import get_user
+from src.services.property_service import add_property
+from src.services.media_service import add_photos_to_property, add_video_note_to_property
 
 # --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Указываем единственно верный файл с клавиатурами ---
-from app.keyboards.inline_keyboards import (get_region_keyboard, get_district_keyboard, get_rooms_keyboard, 
+from src.keyboards.inline_keyboards import (get_region_keyboard, get_district_keyboard, get_rooms_keyboard, 
                                            get_property_types_keyboard, get_guests_keyboard, 
                                            get_finish_upload_keyboard, get_skip_video_keyboard)
-from app.core.constants import DISTRICTS
+from src.core.constants import DISTRICTS
 
 router = Router()
 
@@ -2690,7 +2690,7 @@ async def cancel_add_handler(message: Message, state: FSMContext):
 --------------------------------------------------------------------------------
 from aiogram import F, Router, Bot
 from aiogram.types import CallbackQuery
-from app.services.repository import update_booking_status, get_booking_with_details
+from src.services.repository import update_booking_status, get_booking_with_details
 
 router = Router()
 
@@ -2748,11 +2748,11 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
 # Обновляем импорты
-from app.services.property_service import (get_properties_by_owner, toggle_property_activity, 
+from src.services.property_service import (get_properties_by_owner, toggle_property_activity, 
                                          delete_property, get_property_with_media_and_owner,
                                          get_owner_properties_summary)
-from app.services.booking_service import count_pending_bookings_for_owner
-from app.keyboards.inline_keyboards import (get_property_management_keyboard, 
+from src.services.booking_service import count_pending_bookings_for_owner
+from src.keyboards.inline_keyboards import (get_property_management_keyboard, 
                                            get_delete_confirmation_keyboard)
 
 router = Router()
@@ -2864,19 +2864,19 @@ from aiogram.types import (Message, CallbackQuery, ReplyKeyboardRemove,
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram_calendar import SimpleCalendar, SimpleCalendarCallback
 
-from app.services import availability_service, booking_service
-from app.utils.states import EditProperty
-from app.services.property_service import get_property_with_media_and_owner, update_property_field
-from app.services.media_service import (delete_one_media_item, add_photos_to_property,
+from src.services import availability_service, booking_service
+from src.utils.states import EditProperty
+from src.services.property_service import get_property_with_media_and_owner, update_property_field
+from src.services.media_service import (delete_one_media_item, add_photos_to_property,
                                         add_video_note_to_property)
-from app.keyboards.inline_keyboards import (get_edit_property_keyboard, get_region_keyboard,
+from src.keyboards.inline_keyboards import (get_edit_property_keyboard, get_region_keyboard,
                                            get_district_keyboard, get_rooms_keyboard,
                                            get_guests_keyboard, get_property_types_keyboard,
                                            get_media_management_keyboard, get_delete_one_media_keyboard,
                                            get_finish_upload_keyboard, get_skip_video_keyboard,
                                            get_calendar)
 from .manage_property import my_properties_list
-from app.core.constants import DISTRICTS
+from src.core.constants import DISTRICTS
 
 router = Router()
 
@@ -3211,12 +3211,12 @@ from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 
 # --- Удаляем FSM, он больше не нужен для бронирования ---
 # from aiogram.fsm.context import FSMContext
-# from app.utils.states import BookingFlow
+# from src.utils.states import BookingFlow
 
-from app.services.property_service import get_property_with_media_and_owner
-from app.services import booking_service
-from app.services.review_service import get_reviews_summary
-from app.keyboards.inline_keyboards import (get_booking_management_keyboard, 
+from src.services.property_service import get_property_with_media_and_owner
+from src.services import booking_service
+from src.services.review_service import get_reviews_summary
+from src.keyboards.inline_keyboards import (get_booking_management_keyboard, 
                                             get_property_card_keyboard)
 
 router = Router()
@@ -3326,9 +3326,9 @@ from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
-from app.utils.states import LeaveReview
-from app.services.review_service import add_review, get_latest_reviews
-from app.keyboards.inline_keyboards import get_rating_keyboard
+from src.utils.states import LeaveReview
+from src.services.review_service import add_review, get_latest_reviews
+from src.keyboards.inline_keyboards import get_rating_keyboard
 
 router = Router()
 
@@ -3390,8 +3390,8 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 
-from app.services.user_service import add_user
-from app.keyboards.inline_keyboards import get_main_menu
+from src.services.user_service import add_user
+from src.keyboards.inline_keyboards import get_main_menu
 
 router = Router()
 
@@ -3447,12 +3447,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, KeyboardButton, InputMediaPhoto
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
-from app.services.property_service import get_all_properties
-from app.services.review_service import get_reviews_summary
-from app.keyboards.inline_keyboards import (get_region_keyboard, get_district_keyboard, 
+from src.services.property_service import get_all_properties
+from src.services.review_service import get_reviews_summary
+from src.keyboards.inline_keyboards import (get_region_keyboard, get_district_keyboard, 
                                             get_property_card_keyboard, get_guests_keyboard)
-from app.core.constants import DISTRICTS
-from app.utils.states import SearchProperties
+from src.core.constants import DISTRICTS
+from src.utils.states import SearchProperties
 
 router = Router()
 
@@ -3612,7 +3612,7 @@ async def incorrect_search_input(message: Message):
 --- FILE: app/services/db.py
 --------------------------------------------------------------------------------
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from app.core.settings import settings
+from src.core.settings import settings
 
 # echo=False, чтобы не засорять логи SQL-запросами в продакшене
 engine = create_async_engine(settings.DATABASE_URL_asyncpg, echo=False) 
@@ -3624,7 +3624,7 @@ async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from app.models.models import Booking, Review
+from src.models.models import Booking, Review
 from .db import async_session_maker
 
 async def add_review(booking_id: int, rating: int, text: str | None):
@@ -3686,7 +3686,7 @@ async def get_latest_reviews(property_id: int, limit: int = 5):
 --------------------------------------------------------------------------------
 from datetime import date
 from sqlalchemy import select, delete, and_
-from app.models.models import UnavailableDate
+from src.models.models import UnavailableDate
 from .db import async_session_maker
 
 async def get_manual_blocks(property_id: int) -> list[UnavailableDate]:
@@ -3730,7 +3730,7 @@ from datetime import date
 from sqlalchemy import select, and_, delete
 from sqlalchemy.orm import selectinload
 
-from app.models.models import Property, PriceRule
+from src.models.models import Property, PriceRule
 from .db import async_session_maker
 
 async def get_price_for_date(session, property_id: int, target_date: date, base_price: int) -> int:
@@ -3801,7 +3801,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, update, func, and_
 from sqlalchemy.orm import selectinload
 
-from app.models.models import Booking, Property
+from src.models.models import Booking, Property
 from .db import async_session_maker
 
 
@@ -3883,7 +3883,7 @@ async def get_booked_dates_for_property(property_id: int) -> list[datetime.date]
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from app.models.models import User
+from src.models.models import User
 from .db import async_session_maker
 
 async def add_user(telegram_id: int, username: str | None, first_name: str) -> User:
@@ -3913,7 +3913,7 @@ async def set_user_role(user_id: int, role: str):
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from app.models.models import PropertyMedia
+from src.models.models import PropertyMedia
 from .db import async_session_maker
 
 async def add_photos_to_property(property_id: int, photo_file_ids: list[str]):
@@ -3954,7 +3954,7 @@ from sqlalchemy import select, update, delete, func, and_
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import selectinload
 
-from app.models.models import Property, PropertyMedia
+from src.models.models import Property, PropertyMedia
 from .db import async_session_maker
 
 
@@ -4128,8 +4128,8 @@ from alembic import context
 sys.path.insert(0, dirname(dirname(abspath(__file__))))
 
 # 1. Импортируем наши настройки и базовую модель из SQLAlchemy
-from app.core.settings import settings
-from app.models.base import Base # Мы создадим этот файл на следующем шаге
+from src.core.settings import settings
+from src.models.base import Base # Мы создадим этот файл на следующем шаге
 
 # --- НАШИ ДОБАВЛЕНИЯ ЗАКАНЧИВАЮТСЯ ЗДЕСЬ ---
 
