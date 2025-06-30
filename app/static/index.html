@@ -75,49 +75,30 @@
             const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
             const dayNames = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-            // --- ИЗМЕНЕНИЕ: Оборачиваем fetch в async/await с try/catch ---
             async function fetchAndRenderMonth(year, month) {
                 if (isLoading) return;
                 isLoading = true;
-
                 try {
                     const urlParams = new URLSearchParams(window.location.search);
                     const propertyId = urlParams.get('property_id');
-                    if (!propertyId) {
-                        throw new Error("Не найден ID объекта в URL.");
-                    }
-
+                    if (!propertyId) { throw new Error("Не найден ID объекта в URL."); }
                     const fetchUrl = `/api/calendar_data/${propertyId}?year=${year}&month=${month + 1}`;
-                    const response = await fetch(fetchUrl, { headers: { 'ngrok-skip-browser-warning': 'true' } });
-
-                    if (!response.ok) {
-                        throw new Error(`Ошибка сети: ${response.status} ${response.statusText}`);
-                    }
-                    
+                    const response = await fetch(fetchUrl);
+                    if (!response.ok) { throw new Error(`Ошибка сети: ${response.status}`); }
                     const data = await response.json();
-                    
-                    // Проверяем, что data - это массив
-                    if (!Array.isArray(data)) {
-                        throw new Error("API вернул некорректные данные.");
-                    }
-
+                    if (!Array.isArray(data)) { throw new Error("API вернул некорректные данные."); }
                     data.forEach(dayInfo => { calendarData[dayInfo.date] = { status: dayInfo.status, price: dayInfo.price }; });
                     renderMonth(year, month);
                     updateUI();
-
                 } catch (error) {
                     console.error('Критическая ошибка при загрузке календаря:', error);
                     infoPanel.textContent = "Ошибка загрузки данных. Попробуйте позже.";
-                    // Блокируем кнопку, чтобы избежать дальнейших действий
                     confirmButton.disabled = true; 
                 } finally {
                     isLoading = false;
                 }
             }
             
-            // Остальной код остается без изменений, так как он был написан корректно
-            // и ломался из-за падения скрипта выше.
-            // ... (весь остальной JS-код)
             function renderMonth(year, month) {
                 const monthContainerId = `month-${year}-${month}`;
                 if (document.getElementById(monthContainerId)) return;
@@ -150,9 +131,7 @@
                     if (dayData) {
                         if (dayData.status !== 'available') {
                             dayEl.classList.add('disabled');
-                            if (dayData.status === 'booked') {
-                                dayEl.classList.add('booked');
-                            }
+                            if (dayData.status === 'booked') { dayEl.classList.add('booked'); }
                         } else {
                             dayPriceHTML = `<div class="day-price">${dayData.price ? `${dayData.price}` : ''}</div>`;
                             dayEl.addEventListener('click', onDayClick);
@@ -174,9 +153,8 @@
                     const selectedD = new Date(selectedDateStr);
                     const checkinD = new Date(checkinDate);
                     if (selectedD > checkinD) {
-                        if (isRangeAvailable(checkinDate, selectedDateStr)) {
-                            checkoutDate = selectedDateStr;
-                        } else {
+                        if (isRangeAvailable(checkinDate, selectedDateStr)) { checkoutDate = selectedDateStr; } 
+                        else {
                             tg.showAlert('Выбранный диапазон содержит занятые даты. Пожалуйста, выберите другой период.');
                             checkinDate = selectedDateStr;
                             checkoutDate = null;
@@ -260,27 +238,50 @@
                 return `${day}.${month}`;
             }
 
-            confirmButton.addEventListener('click', () => {
+            // --- ИЗМЕНЕНИЕ ЗДЕСЬ: Обработчик для нашей HTML-кнопки ---
+            confirmButton.addEventListener('click', async () => {
                 if (confirmButton.disabled) return;
+
                 if (checkinDate && checkoutDate) {
                     const { total } = calculateTotal();
                     const dataToSend = {
                         property_id: new URLSearchParams(window.location.search).get('property_id'),
                         checkin_date: checkinDate,
                         checkout_date: checkoutDate,
-                        total_price: total
+                        total_price: total,
+                        user: tg.initDataUnsafe.user
                     };
-                    tg.sendData(JSON.stringify(dataToSend));
+
+                    try {
+                        confirmButton.disabled = true;
+                        confirmButton.textContent = 'Обработка...';
+
+                        const response = await fetch('/api/bookings/create', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(dataToSend),
+                        });
+
+                        if (!response.ok) { throw new Error('Ошибка при отправке бронирования.'); }
+
+                        tg.showPopup({
+                            title: 'Успешно!',
+                            message: 'Ваша заявка на бронирование отправлена владельцу.',
+                            buttons: [{ type: 'ok' }]
+                        }, () => { tg.close(); });
+
+                    } catch (error) {
+                        console.error('Ошибка fetch:', error);
+                        tg.showAlert('Произошла ошибка. Пожалуйста, попробуйте снова.');
+                        updateUI(); 
+                    }
                 }
             });
 
             window.addEventListener('scroll', () => {
                 if (!isLoading && (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 150) {
                    currentMonth++;
-                   if (currentMonth > 11) {
-                       currentMonth = 0;
-                       currentYear++;
-                   }
+                   if (currentMonth > 11) { currentMonth = 0; currentYear++; }
                    fetchAndRenderMonth(currentYear, currentMonth);
                 }
             });

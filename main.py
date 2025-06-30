@@ -2,10 +2,9 @@ import asyncio
 import logging
 import sys
 
-from aiogram import Bot, Dispatcher, F
+from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import Message
 from aiohttp import web
 import aiohttp_cors
 
@@ -13,14 +12,10 @@ from app.core.settings import settings
 from app.core.commands import set_commands
 from app.core.scheduler import scheduler
 from app.handlers import main_router
-from app.web.routes import webhook_handler, client_webapp_handler, get_calendar_data
-
-async def temporary_webapp_catcher(message: Message):
-    logging.critical("="*50)
-    logging.critical("!!! WEB APP CATCHER WORKED !!!")
-    logging.critical(f"DATA RECEIVED: {message.web_app_data.data}")
-    logging.critical("="*50)
-    await message.answer("✅ **Бэкенд поймал данные!**")
+# --- ИЗМЕНЕНИЕ ЗДЕСЬ: Импортируем новый обработчик ---
+from app.web.routes import (webhook_handler, client_webapp_handler, 
+                            get_calendar_data, create_booking_handler)
+from app.middlewares.error_catcher import ErrorCatcherMiddleware
 
 async def on_startup(app: web.Application):
     bot: Bot = app["bot"]
@@ -33,7 +28,7 @@ async def on_startup(app: web.Application):
         secret_token=webhook_secret,
         allowed_updates=["message", "callback_query", "my_chat_member", "chat_member"]
     )
-    logging.info("Webhook has been set.")
+    logging.info("Webhook has been set successfully.")
 
 async def on_shutdown(app: web.Application):
     bot: Bot = app["bot"]
@@ -48,8 +43,8 @@ if __name__ == "__main__":
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher()
-    
-    dp.message.register(temporary_webapp_catcher, F.web_app_data)
+
+    dp.update.outer_middleware(ErrorCatcherMiddleware())
     dp.include_router(main_router)
 
     app = web.Application()
@@ -69,8 +64,13 @@ if __name__ == "__main__":
             allow_headers="*", allow_methods="*",
         )
     })
+    
     calendar_resource = cors.add(app.router.add_resource('/api/calendar_data/{property_id}'))
     cors.add(calendar_resource.add_route("GET", get_calendar_data))
+    
+    # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Регистрируем новый роут в CORS ---
+    booking_resource = cors.add(app.router.add_resource('/api/bookings/create'))
+    cors.add(booking_resource.add_route("POST", create_booking_handler))
 
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
