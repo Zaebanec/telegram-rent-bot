@@ -1,8 +1,8 @@
-"""Final schema
+"""Initial migration from final models
 
-Revision ID: 0372a3ff3322
+Revision ID: 2bf2bba148b0
 Revises: 
-Create Date: 2025-06-20 19:09:27.554564
+Create Date: 2025-06-30 13:50:13.953448
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '0372a3ff3322'
+revision: str = '2bf2bba148b0'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -24,30 +24,34 @@ def upgrade() -> None:
     sa.Column('telegram_id', sa.BigInteger(), nullable=False),
     sa.Column('username', sa.String(length=32), nullable=True),
     sa.Column('first_name', sa.String(length=64), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('role', sa.String(length=20), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('telegram_id'),
     sa.UniqueConstraint('username'),
     schema='public'
     )
     op.create_table('properties',
-    sa.Column('owner_id', sa.BigInteger(), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('owner_id', sa.BigInteger(), nullable=False),
     sa.Column('title', sa.String(length=100), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('address', sa.String(length=255), nullable=False),
     sa.Column('district', sa.String(length=50), nullable=False),
-    sa.Column('rooms', sa.Integer(), nullable=False),
     sa.Column('price_per_night', sa.Integer(), nullable=False),
+    sa.Column('rooms', sa.Integer(), nullable=False),
     sa.Column('max_guests', sa.Integer(), nullable=False),
     sa.Column('property_type', sa.String(length=50), nullable=False),
     sa.Column('is_verified', sa.Boolean(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['owner_id'], ['public.users.telegram_id'], ),
     sa.PrimaryKeyConstraint('id'),
     schema='public'
     )
+    op.create_index(op.f('ix_public_properties_district'), 'properties', ['district'], unique=False, schema='public')
+    op.create_index(op.f('ix_public_properties_price_per_night'), 'properties', ['price_per_night'], unique=False, schema='public')
     op.create_table('bookings',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('property_id', sa.Integer(), nullable=False),
@@ -55,17 +59,40 @@ def upgrade() -> None:
     sa.Column('start_date', sa.DateTime(), nullable=False),
     sa.Column('end_date', sa.DateTime(), nullable=False),
     sa.Column('status', sa.String(length=20), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['property_id'], ['public.properties.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['public.users.telegram_id'], ),
     sa.PrimaryKeyConstraint('id'),
     schema='public'
     )
-    op.create_table('property_media',
-    sa.Column('property_id', sa.Integer(), nullable=False),
+    op.create_table('price_rules',
     sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('property_id', sa.Integer(), nullable=False),
+    sa.Column('start_date', sa.Date(), nullable=False),
+    sa.Column('end_date', sa.Date(), nullable=False),
+    sa.Column('price', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.ForeignKeyConstraint(['property_id'], ['public.properties.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    schema='public'
+    )
+    op.create_table('property_media',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('property_id', sa.Integer(), nullable=False),
     sa.Column('file_id', sa.String(length=255), nullable=False),
     sa.Column('media_type', sa.String(length=10), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.ForeignKeyConstraint(['property_id'], ['public.properties.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    schema='public'
+    )
+    op.create_table('unavailable_dates',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('property_id', sa.Integer(), nullable=False),
+    sa.Column('date', sa.Date(), nullable=False),
+    sa.Column('comment', sa.String(length=100), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['property_id'], ['public.properties.id'], ),
     sa.PrimaryKeyConstraint('id'),
     schema='public'
@@ -77,7 +104,8 @@ def upgrade() -> None:
     sa.Column('booking_id', sa.Integer(), nullable=False),
     sa.Column('rating', sa.Integer(), nullable=False),
     sa.Column('text', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['booking_id'], ['public.bookings.id'], ),
     sa.ForeignKeyConstraint(['property_id'], ['public.properties.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['public.users.telegram_id'], ),
@@ -100,8 +128,12 @@ def downgrade() -> None:
     )
     op.create_index('ix_apscheduler_jobs_next_run_time', 'apscheduler_jobs', ['next_run_time'], unique=False)
     op.drop_table('reviews', schema='public')
+    op.drop_table('unavailable_dates', schema='public')
     op.drop_table('property_media', schema='public')
+    op.drop_table('price_rules', schema='public')
     op.drop_table('bookings', schema='public')
+    op.drop_index(op.f('ix_public_properties_price_per_night'), table_name='properties', schema='public')
+    op.drop_index(op.f('ix_public_properties_district'), table_name='properties', schema='public')
     op.drop_table('properties', schema='public')
     op.drop_table('users', schema='public')
     # ### end Alembic commands ###

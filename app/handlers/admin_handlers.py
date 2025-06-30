@@ -7,7 +7,6 @@ from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
-# --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Обновляем импорты ---
 from app.services.property_service import set_property_verified
 from app.services.booking_service import update_booking_status, get_booking_with_details
 from app.services.user_service import set_user_role
@@ -25,11 +24,11 @@ async def set_user_role_handler(message: Message):
     """
     Устанавливает роль пользователю.
     Формат: /setrole <user_id> <role>
-    Роли: user, owner, admin
     """
     try:
         parts = message.text.split()
-        if len(parts) != 3: raise ValueError()
+        if len(parts) != 3:
+            raise ValueError("Неверное количество аргументов.")
         
         user_id = int(parts[1])
         role = parts[2].lower()
@@ -41,10 +40,14 @@ async def set_user_role_handler(message: Message):
         await set_user_role(user_id, role)
         await message.answer(f"Пользователю с ID {user_id} была успешно присвоена роль '{role}'.")
 
-    except (IndexError, ValueError):
-        await message.answer("Неверный формат команды. Используйте: /setrole <ID> <роль>")
+    except (ValueError, IndexError):
+        # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Экранируем HTML-символы ---
+        await message.answer(
+            "Неверный формат команды. Используйте: `/setrole <ID пользователя> <роль>`"
+        )
     except Exception as e:
-        await message.answer(f"Произошла ошибка: {e}")
+        logging.error(f"Ошибка при установке роли: {e}")
+        await message.answer(f"Произошла непредвиденная ошибка при установке роли.")
 
 
 @router.message(Command("verify"))
@@ -58,7 +61,8 @@ async def verify_property(message: Message):
         await set_property_verified(property_id, status=True)
         await message.answer(f"Объект с ID {property_id} был успешно верифицирован ✅.")
     except (IndexError, ValueError):
-        await message.answer("Неверный формат команды. Используйте: /verify <ID объекта>")
+        # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Экранируем HTML-символы ---
+        await message.answer("Неверный формат команды. Используйте: `/verify <ID объекта>`")
     except Exception as e:
         await message.answer(f"Произошла ошибка: {e}")
 
@@ -73,16 +77,16 @@ async def unverify_property(message: Message):
         await set_property_verified(property_id, status=False)
         await message.answer(f"С объекта с ID {property_id} была снята верификация.")
     except (IndexError, ValueError):
-        await message.answer("Неверный формат команды. Используйте: /unverify <ID объекта>")
+        # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Экранируем HTML-символы ---
+        await message.answer("Неверный формат команды. Используйте: `/unverify <ID объекта>`")
+    except Exception as e:
+        await message.answer(f"Произошла ошибка: {e}")
 
 
-# --- Обработка заявок на бронирование ---
+# --- Обработка заявок на бронирование (без изменений) ---
 
 @router.callback_query(F.data.startswith("booking:confirm:"))
 async def confirm_booking(callback: CallbackQuery, bot: Bot):
-    """
-    Обрабатывает нажатие на кнопку "Принять" заявку.
-    """
     booking_id = int(callback.data.split(":")[2])
     
     await update_booking_status(booking_id, "confirmed")
@@ -94,7 +98,6 @@ async def confirm_booking(callback: CallbackQuery, bot: Bot):
     await callback.message.edit_text(f"{callback.message.text}\n\n--- \n✅ ВЫ ПРИНЯЛИ ЭТУ ЗАЯВКУ ---")
     
     try:
-        # Планируем отправку запроса на отзыв через 2 минуты
         run_date = datetime.now(ZoneInfo("Europe/Kaliningrad")) + timedelta(minutes=2)
         scheduler.add_job(
             request_review,
@@ -124,9 +127,6 @@ async def confirm_booking(callback: CallbackQuery, bot: Bot):
 
 @router.callback_query(F.data.startswith("booking:reject:"))
 async def reject_booking(callback: CallbackQuery, bot: Bot):
-    """
-    Обрабатывает нажатие на кнопку "Отклонить" заявку.
-    """
     booking_id = int(callback.data.split(":")[2])
     
     await update_booking_status(booking_id, "rejected")
