@@ -29,3 +29,7 @@ aiohttp
 # --- НОВАЯ ЗАВИСИМОСТЬ ---
 # Для настройки CORS (Cross-Origin Resource Sharing)
 aiohttp-cors==0.7.0
+
+# --- ЗАВИСИМОСТИ ДЛЯ ТЕСТИРОВАНИЯ ---
+pytest==8.3.2
+pytest-asyncio==0.23.8

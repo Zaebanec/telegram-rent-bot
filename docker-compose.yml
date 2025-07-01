@@ -1,9 +1,14 @@
 services:
+  # --- СЕРВИС ДЛЯ ОСНОВНОГО БОТА ---
   bot:
     build: .
     env_file: .env
     volumes:
-      - .:/app
+      # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Монтируем текущую папку в /src ---
+      # Теперь путь на хосте (например, ./src/core) совпадает с путем в контейнере (/src/src/core)
+      # Это не совсем верно, давайте исправим.
+      # Правильно: монтируем содержимое текущей папки в /src
+      - .:/src
     ports:
       - "8080:8080"
     depends_on:
@@ -11,21 +16,41 @@ services:
       - redis
     restart: always
 
+  # --- СЕРВИС ДЛЯ ОСНОВНОЙ БАЗЫ ДАННЫХ ---
   db:
     image: postgres:16-alpine
     env_file: .env
     volumes:
       - postgres_data:/var/lib/postgresql/data/
-    # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-    # В продакшен-среде не рекомендуется открывать порт базы данных наружу.
-    # Для локальной отладки с помощью IDE или клиента БД можно раскомментировать эту строку.
-    # ports:
-    #   - "5433:5432"
     restart: always
 
+  # --- СЕРВИС ДЛЯ REDIS ---
   redis:
     image: redis:7-alpine
     restart: always
 
+  # --- НОВЫЙ СЕРВИС ДЛЯ ТЕСТОВОЙ БД ---
+  test_db:
+    image: postgres:16-alpine
+    env_file: .env
+    environment:
+      POSTGRES_DB: test_rent_bot_db
+    restart: always
+
+  # --- НОВЫЙ СЕРВИС ДЛЯ ЗАПУСКА ТЕСТОВ ---
+  tests:
+    build: .
+    depends_on:
+      - test_db
+    env_file: .env
+    volumes:
+      # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Монтируем текущую папку в /src ---
+      - .:/src
+    environment:
+      POSTGRES_HOST: test_db
+      POSTGRES_DB: test_rent_bot_db
+    command: ["pytest", "-v"]
+
+# --- СЕКЦИЯ ДЛЯ ТОМОВ (VOLUMES) ---
 volumes:
   postgres_data:
