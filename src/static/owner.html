@@ -2,44 +2,22 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Управление Календарем</title>
-    <!-- Подключаем файл со стилями -->
     <link rel="stylesheet" href="/static/owner.css">
-    <!-- Подключаем скрипт Telegram Web App -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
 
-    <!-- Основной контейнер приложения -->
-    <div id="calendar-app">
-        <!-- Заголовок с навигацией по месяцам -->
-        <div class="calendar-header">
-            <button id="prev-month" class="nav-button">&lt;</button>
-            <h2 id="month-year"></h2>
-            <button id="next-month" class="nav-button">&gt;</button>
-        </div>
+    <!-- Основной контейнер для календарей -->
+    <div id="calendar-container"></div>
 
-        <!-- Контейнер для самого календаря -->
-        <div id="calendar-grid" class="calendar-grid">
-            <!-- Дни недели -->
-            <div class="day-name">Пн</div>
-            <div class="day-name">Вт</div>
-            <div class="day-name">Ср</div>
-            <div class="day-name">Чт</div>
-            <div class="day-name">Пт</div>
-            <div class="day-name">Сб</div>
-            <div class="day-name">Вс</div>
-            <!-- Ячейки для дней будут генерироваться здесь -->
-        </div>
-
-        <!-- Легенда для статусов дней -->
-        <div class="legend">
-            <div class="legend-item"><span class="color-box available"></span> - Свободно</div>
-            <div class="legend-item"><span class="color-box booked"></span> - Забронировано</div>
-            <div class="legend-item"><span class="color-box manual-block"></span> - Заблокировано</div>
-            <div class="legend-item"><span class="color-box selected"></span> - Выбрано</div>
-        </div>
+    <!-- Легенда для статусов дней -->
+    <div class="legend">
+        <div class="legend-item"><span class="color-box available"></span> - Свободно</div>
+        <div class="legend-item"><span class="color-box booked"></span> - Забронировано</div>
+        <div class="legend-item"><span class="color-box manual-block"></span> - Заблокировано</div>
+        <div class="legend-item"><span class="color-box selected"></span> - Выбрано</div>
     </div>
 
     <!-- Индикатор загрузки -->
@@ -48,6 +26,6 @@
     </div>
 
     <!-- Подключаем основной файл с логикой -->
-     <script src="/static/owner.js"></script>
+    <script src="/static/owner.js"></script>
 </body>
 </html>

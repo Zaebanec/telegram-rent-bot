@@ -1,20 +1,16 @@
-# Этот файл делает функции из разных сервисных модулей
-# доступными на уровне всего пакета app.services.
+# Этот файл нужен, чтобы Python считал папку 'services' пакетом.
+# Мы можем использовать его для удобного импорта, но сейчас оставим его простым.
 
-from .availability_service import get_manual_blocks, toggle_manual_availability
-from .booking_service import create_booking, get_booked_dates_for_property, get_booking_with_details, update_booking_status
-from .media_service import add_photos_to_property, add_video_note_to_property, delete_one_media_item
-from .pricing_service import get_price_for_date, add_price_rule, get_property_with_price_rules
-from .property_service import (
-    add_property, 
-    get_all_properties, 
-    get_property_with_media_and_owner,
-    set_property_verified,
-    get_properties_by_owner,
-    toggle_property_activity,
-    delete_property,
-    update_property_field,
-    get_owner_properties_summary
-)
-from .review_service import add_review, get_latest_reviews, get_reviews_summary
-from .user_service import add_user, get_user, set_user_role
+# --- ИЗМЕНЕНИЕ ЗДЕСЬ: Убираем импорт несуществующей функции ---
+# и импортируем новую, если это потребуется в будущем.
+# Пока что для чистоты можно оставить его пустым или импортировать нужные функции.
+
+# from .availability_service import get_manual_blocks, set_availability_for_period
+# from .booking_service import ...
+# from .pricing_service import ...
+# from .property_service import ...
+# from .review_service import ...
+# from .user_service import ...
+
+# На данном этапе для чистоты оставим файл пустым, 
+# так как все импорты происходят напрямую из модулей.

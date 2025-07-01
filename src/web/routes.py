@@ -3,7 +3,6 @@ from datetime import date, datetime
 from aiohttp import web
 from aiogram.types import Update
 
-# --- ИЗМЕНЕНИЕ ЗДЕСЬ: Исправляем пути импорта ---
 from src.services import availability_service, booking_service, pricing_service
 from src.services.db import async_session_maker
 
@@ -23,6 +22,10 @@ async def webhook_handler(request: web.Request) -> web.Response:
 
 async def client_webapp_handler(request: web.Request) -> web.Response:
     return web.FileResponse('src/static/index.html')
+
+# --- ИЗМЕНЕНИЕ: Возвращаем обработчик для Web App владельца ---
+async def owner_webapp_handler(request: web.Request) -> web.Response:
+    return web.FileResponse('src/static/owner.html')
 
 async def get_calendar_data(request: web.Request) -> web.Response:
     try:
@@ -64,19 +67,19 @@ async def get_calendar_data(request: web.Request) -> web.Response:
             })
     return web.json_response(days_data)
 
-async def toggle_availability(request: web.Request) -> web.Response:
+# --- ИЗМЕНЕНИЕ: Возвращаем обработчик для установки доступности ---
+async def set_availability(request: web.Request) -> web.Response:
     try:
         data = await request.json()
         property_id = int(data['property_id'])
-        target_date_str = data['date']
-        target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+        dates_str = data['dates']
+        dates = [datetime.strptime(d, '%Y-%m-%d').date() for d in dates_str]
+        is_available = bool(data['is_available'])
         comment = data.get('comment')
     except Exception:
         return web.json_response({'error': 'Invalid request body'}, status=400)
-    booked_dates = await booking_service.get_booked_dates_for_property(property_id)
-    if target_date in booked_dates:
-        return web.json_response({'error': 'Date is already booked by a client'}, status=409)
-    await availability_service.toggle_manual_availability(property_id, target_date, comment)
+    
+    await availability_service.set_availability_for_period(property_id, dates, is_available, comment)
     return web.json_response({'status': 'ok'})
 
 async def add_price_rule(request: web.Request) -> web.Response:

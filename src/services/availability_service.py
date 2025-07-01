@@ -1,37 +1,46 @@
 from datetime import date
+from typing import List
 from sqlalchemy import select, delete, and_
-from src.models.models import UnavailableDate
-from .db import async_session_maker
+from sqlalchemy.dialects.postgresql import insert
 
-async def get_manual_blocks(property_id: int) -> list[UnavailableDate]:
-    """Возвращает список объектов UnavailableDate, заблокированных владельцем вручную."""
+from src.models.models import UnavailableDate
+from src.services.db import async_session_maker
+
+async def get_manual_blocks(property_id: int) -> List[UnavailableDate]:
+    """Возвращает список дат, заблокированных владельцем вручную."""
     async with async_session_maker() as session:
         query = select(UnavailableDate).where(UnavailableDate.property_id == property_id)
         result = await session.execute(query)
         return result.scalars().all()
 
-async def toggle_manual_availability(property_id: int, target_date: date, comment: str | None = None) -> str:
+async def set_availability_for_period(property_id: int, dates: List[date], is_available: bool, comment: str | None):
     """
-    Переключает статус ручной блокировки для даты.
-    Если дата блокируется, можно передать комментарий.
+    Устанавливает статус доступности для списка дат.
+    Если is_available=False, добавляет/обновляет блокировки.
+    Если is_available=True, удаляет блокировки.
     """
     async with async_session_maker() as session:
-        query = select(UnavailableDate).where(
-            and_(
-                UnavailableDate.property_id == property_id,
-                UnavailableDate.date == target_date
+        if not is_available:
+            # Используем "ON CONFLICT DO UPDATE", чтобы обновить комментарий, если дата уже заблокирована
+            stmt = insert(UnavailableDate).values(
+                [
+                    {"property_id": property_id, "date": d, "comment": comment}
+                    for d in dates
+                ]
             )
-        )
-        result = await session.execute(query)
-        existing_block = result.scalar_one_or_none()
-
-        if existing_block:
-            await session.delete(existing_block)
-            new_status = 'available'
+            update_stmt = stmt.on_conflict_do_update(
+                index_elements=['property_id', 'date'], # Уникальный ключ
+                set_={'comment': stmt.excluded.comment}
+            )
+            await session.execute(update_stmt)
         else:
-            new_block = UnavailableDate(property_id=property_id, date=target_date, comment=comment)
-            session.add(new_block)
-            new_status = 'manual_block'
+            # Удаляем все блокировки для указанных дат
+            stmt = delete(UnavailableDate).where(
+                and_(
+                    UnavailableDate.property_id == property_id,
+                    UnavailableDate.date.in_(dates)
+                )
+            )
+            await session.execute(stmt)
         
         await session.commit()
-        return new_status
