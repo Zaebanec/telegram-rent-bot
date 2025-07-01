@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selection = { start: null, end: null };
     let isMouseDown = false;
     // URL вашего сервера (замените на реальный, если он отличается)
-    const API_BASE_URL = 'https://9845-94-140-141-218.ngrok-free.app';
+    const API_BASE_URL = ''; 
 
 
     // --- ОСНОВНЫЕ ФУНКЦИИ ---

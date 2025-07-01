@@ -134,7 +134,8 @@ def get_edit_property_keyboard(property_id: int):
     builder.button(text="Тип объекта", callback_data=f"edit_prop:type:{property_id}")
     builder.button(text="📸 Управлять фото/видео", callback_data=f"edit_prop:media:{property_id}")
     
-    owner_web_app_url = f"{settings.WEB_APP_BASE_URL}/static/owner.html?property_id={property_id}&v={int(time.time())}"
+    # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Формируем правильный URL для Web App владельца ---
+    owner_web_app_url = f"{settings.WEB_APP_BASE_URL}/webapp/owner?property_id={property_id}&v={int(time.time())}"
     builder.button(text="🗓️ Управлять доступностью", web_app=WebAppInfo(url=owner_web_app_url))
     
     builder.button(text="🔙 Назад к списку", callback_data="back_to_my_properties")
