@@ -6,8 +6,7 @@ from aiogram.types import Update
 from src.services import availability_service, booking_service, pricing_service
 from src.services.db import async_session_maker
 
-# --- ОБРАБОТЧИКИ ---
-
+# ... (webhook_handler без изменений) ...
 async def webhook_handler(request: web.Request) -> web.Response:
     if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != request.app["webhook_secret"]:
         return web.json_response({"error": "Unauthorized"}, status=401)
@@ -21,12 +20,31 @@ async def webhook_handler(request: web.Request) -> web.Response:
     return web.Response()
 
 async def client_webapp_handler(request: web.Request) -> web.Response:
-    return web.FileResponse('src/static/index.html')
+    headers = {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+    }
+    # ---> НАЧАЛО КЛЮЧЕВОГО ИЗМЕНЕНИЯ <---
+    # Строим путь от абсолютного корня, который мы сохранили в app
+    root_dir = request.app['root_dir']
+    path_to_file = root_dir / 'src' / 'static' / 'index.html'
+    return web.FileResponse(path_to_file, headers=headers)
+    # ---> КОНЕЦ КЛЮЧЕВОГО ИЗМЕНЕНИЯ <---
 
-# --- ИЗМЕНЕНИЕ: Возвращаем обработчик для Web App владельца ---
 async def owner_webapp_handler(request: web.Request) -> web.Response:
-    return web.FileResponse('src/static/owner.html')
+    headers = {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+    }
+    # ---> НАЧАЛО КЛЮЧЕВОГО ИЗМЕНЕНИЯ <---
+    root_dir = request.app['root_dir']
+    path_to_file = root_dir / 'src' / 'static' / 'owner.html'
+    return web.FileResponse(path_to_file, headers=headers)
+    # ---> КОНЕЦ КЛЮЧЕВОГО ИЗМЕНЕНИЯ <---
 
+# ... (остальной код файла без изменений) ...
 async def get_calendar_data(request: web.Request) -> web.Response:
     try:
         property_id = int(request.match_info['property_id'])
@@ -67,7 +85,6 @@ async def get_calendar_data(request: web.Request) -> web.Response:
             })
     return web.json_response(days_data)
 
-# --- ИЗМЕНЕНИЕ: Возвращаем обработчик для установки доступности ---
 async def set_availability(request: web.Request) -> web.Response:
     try:
         data = await request.json()

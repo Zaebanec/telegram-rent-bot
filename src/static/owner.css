@@ -4,27 +4,33 @@
     --tg-hint-color: var(--tg-theme-hint-color, #aaaaaa);
     --tg-button-color: var(--tg-theme-button-color, #5288c1);
     --tg-button-text-color: var(--tg-theme-button-text-color, #ffffff);
+    --tg-secondary-bg-color: var(--tg-theme-secondary-bg-color, #303030);
     
-    /* --- НОВАЯ СТИЛЬНАЯ ЦВЕТОВАЯ СХЕМА --- */
-    --color-cell-bg: #303030;         /* Фон ячейки по умолчанию */
-    --color-cell-border: #424242;     /* Цвет рамки */
-    --color-price-text: #9e9e9e;      /* Цвет цены */
-    --color-booked-bg: #424242;       /* Фон для броней (темнее) */
+    --color-cell-border: #424242;
+    --color-price-text: #9e9e9e;
+    --color-booked-bg: #424242;
     --color-booked-text: #9e9e9e;
-    --color-past-bg: #212121;         /* Фон для прошедших дат (как фон страницы) */
+    --color-past-bg: #212121;
     --color-past-text: #616161;
-    --color-selected-bg: #5288c1;     /* Яркий синий для выделения */
-    --color-selected-text: #ffffff;
-    --color-manual-block-dot: #e53935; /* Ярко-красный для точки */
+    --color-selected-bg: var(--tg-button-color);
+    --color-selected-text: var(--tg-button-text-color);
+    --color-manual-block-dot: #e53935;
 }
 
-html, body { height: auto; min-height: 100%; }
+html, body { 
+    height: auto; 
+    min-height: 100%;
+    /* Добавляем отступ снизу, чтобы панель не перекрывала контент */
+    padding-bottom: 120px; 
+}
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--tg-bg-color);
     color: var(--tg-text-color);
     margin: 0;
-    padding: 15px;
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-top: 15px;
     box-sizing: border-box;
 }
 
@@ -41,7 +47,7 @@ body {
     justify-content: center;
     align-items: center;
     border: 1px solid var(--color-cell-border);
-    background-color: var(--color-cell-bg);
+    background-color: var(--tg-secondary-bg-color);
     border-radius: 12px;
     cursor: pointer;
     transition: transform 0.1s, background-color 0.2s;
@@ -49,9 +55,7 @@ body {
 
 .day-cell:hover:not(.disabled) { transform: scale(1.05); }
 .day-number { font-size: 1em; font-weight: 500; }
-.day-price { font-size: 0.8em; font-weight: 600; margin-top: 2px; color: var(--color-price-text); }
-
-/* --- ИЗМЕНЕНИЕ: СТИЛЬ ДЛЯ ТОЧКИ БЛОКИРОВКИ --- */
+.day-price { font-size: 0.7em; margin-top: 2px; color: var(--color-price-text); }
 .day-cell.manual-block::after {
     content: '';
     position: absolute;
@@ -62,8 +66,6 @@ body {
     border-radius: 50%;
     background-color: var(--color-manual-block-dot);
 }
-
-/* --- СТИЛИЗАЦИЯ СТАТУСОВ --- */
 .day-cell.booked { background-color: var(--color-booked-bg); color: var(--color-booked-text); }
 .day-cell.booked .day-price { color: var(--color-booked-text); }
 .day-cell.past { background-color: var(--color-past-bg); color: var(--color-past-text); border-color: transparent; }
@@ -74,8 +76,50 @@ body {
 .day-cell.empty:hover { transform: none; }
 .day-cell.disabled { cursor: not-allowed; }
 
-.legend { display: none; } /* Легенда больше не нужна, точка говорит сама за себя */
 .loader-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; visibility: hidden; opacity: 0; transition: opacity 0.3s, visibility 0.3s; }
 .loader-overlay.visible { visibility: visible; opacity: 1; }
 .loader-spinner { border: 5px solid #424242; border-top: 5px solid var(--tg-button-color); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+
+/* === НОВЫЕ СТИЛИ ДЛЯ ПАНЕЛИ ДЕЙСТВИЙ === */
+.actions-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--tg-bg-color);
+    padding: 10px 15px 15px 15px;
+    box-shadow: 0 -5px 15px -5px rgba(0,0,0,0.2);
+    border-top: 1px solid var(--color-cell-border);
+    transform: translateY(100%);
+    transition: transform 0.3s ease-in-out;
+    z-index: 100;
+}
+.actions-container.visible {
+    transform: translateY(0);
+}
+.info-panel {
+    text-align: center;
+    font-size: 14px;
+    color: var(--tg-hint-color);
+    margin-bottom: 10px;
+}
+.buttons-panel {
+    display: flex;
+    gap: 10px;
+}
+.action-button {
+    flex-grow: 1;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--tg-secondary-bg-color);
+    color: var(--tg-text-color);
+    cursor: pointer;
+}
+.action-button:active {
+    opacity: 0.8;
+}

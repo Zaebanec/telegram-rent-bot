@@ -12,17 +12,21 @@
     <!-- Основной контейнер для календарей -->
     <div id="calendar-container"></div>
 
-    <!-- Легенда для статусов дней -->
-    <div class="legend">
-        <div class="legend-item"><span class="color-box available"></span> - Свободно</div>
-        <div class="legend-item"><span class="color-box booked"></span> - Забронировано</div>
-        <div class="legend-item"><span class="color-box manual-block"></span> - Заблокировано</div>
-        <div class="legend-item"><span class="color-box selected"></span> - Выбрано</div>
-    </div>
-
     <!-- Индикатор загрузки -->
     <div id="loader" class="loader-overlay">
         <div class="loader-spinner"></div>
+    </div>
+    
+    <!-- === НОВЫЙ БЛОК: КОНТЕКСТНАЯ ПАНЕЛЬ ДЕЙСТВИЙ === -->
+    <div id="sticky-actions-container" class="actions-container">
+        <div class="info-panel">
+            <span id="info-text">Выберите диапазон дат</span>
+        </div>
+        <div class="buttons-panel">
+            <button id="action-block" class="action-button">🚫 Заблокировать</button>
+            <button id="action-unblock" class="action-button">✅ Разблокировать</button>
+            <button id="action-set-price" class="action-button">💰 Установить цену</button>
+        </div>
     </div>
 
     <!-- Подключаем основной файл с логикой -->

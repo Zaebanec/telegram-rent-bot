@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+from pathlib import Path # <--- ИМПОРТИРУЕМ PATHLIB
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
@@ -13,17 +14,24 @@ from src.core.settings import settings
 from src.core.commands import set_commands
 from src.core.scheduler import scheduler
 from src.handlers import main_router
-# --- ИЗМЕНЕНИЕ: Импортируем ВСЕ необходимые обработчики ---
 from src.web.routes import (
     webhook_handler, 
     client_webapp_handler, 
-    owner_webapp_handler, # <-- Возвращаем
+    owner_webapp_handler,
     get_calendar_data,
     set_availability,
     add_price_rule
 )
 
+# ---> НАЧАЛО КЛЮЧЕВОГО ИЗМЕНЕНИЯ <---
+# Определяем абсолютный путь к корню проекта.
+# В Docker это будет /src
+ROOT_DIR = Path(__file__).parent
+# ---> КОНЕЦ КЛЮЧЕВОГО ИЗМЕНЕНИЯ <---
+
+
 async def on_startup(app: web.Application):
+    # ... (код on_startup без изменений) ...
     bot: Bot = app["bot"]
     base_url = app["base_url"]
     webhook_secret = app["webhook_secret"]
@@ -36,10 +44,13 @@ async def on_startup(app: web.Application):
     )
     logging.info("Webhook has been set.")
 
+
 async def on_shutdown(app: web.Application):
+    # ... (код on_shutdown без изменений) ...
     bot: Bot = app["bot"]
     await bot.delete_webhook()
     logging.info("Webhook has been deleted.")
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -49,22 +60,27 @@ if __name__ == "__main__":
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher()
-    
-    # Убираем тестовый обработчик, он нам больше не нужен
-    # dp.message.register(temporary_webapp_catcher, F.web_app_data)
     dp.include_router(main_router)
 
     app = web.Application()
     
+    # ---> НАЧАЛО КЛЮЧЕВОГО ИЗМЕНЕНИЯ <---
+    # Сохраняем абсолютный путь в приложении
+    app["root_dir"] = ROOT_DIR 
+    # ---> КОНЕЦ КЛЮЧЕВОГО ИЗМЕНЕНИЯ <---
+
     app["bot"] = bot
     app["dp"] = dp
     app["base_url"] = settings.WEB_APP_BASE_URL
     app["webhook_secret"] = settings.WEBHOOK_SECRET.get_secret_value()
-
-    # --- ИЗМЕНЕНИЕ: Полная и правильная регистрация всех роутов ---
-    app.router.add_static('/static/', path='src/static', name='static')
+    
+    # ---> НАЧАЛО КЛЮЧЕВОГО ИЗМЕНЕНИЯ <---
+    # Теперь мы строим путь к статике от абсолютного корня
+    app.router.add_static('/static/', path=(ROOT_DIR / 'src' / 'static'), name='static')
+    # ---> КОНЕЦ КЛЮЧЕВОГО ИЗМЕНЕНИЯ <---
+    
     app.router.add_get("/webapp/client", client_webapp_handler)
-    app.router.add_get("/webapp/owner", owner_webapp_handler) # <-- Возвращаем
+    app.router.add_get("/webapp/owner", owner_webapp_handler)
     app.router.add_post("/webhook", webhook_handler)
     
     cors = aiohttp_cors.setup(app, defaults={
