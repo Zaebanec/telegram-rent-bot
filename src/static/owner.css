@@ -17,21 +17,28 @@
     --color-manual-block-dot: #e53935;
 }
 
-html, body { 
-    height: auto; 
-    min-height: 100%;
-    /* Добавляем отступ снизу, чтобы панель не перекрывала контент */
-    padding-bottom: 120px; 
+/* === ИЗМЕНЕНИЕ: ОСНОВА FLEXBOX-МАКЕТА === */
+html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden; /* Запрещаем скролл на body */
+    background-color: var(--tg-bg-color);
 }
+.main-view {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+#calendar-wrapper {
+    flex-grow: 1; /* Занимает все доступное пространство */
+    overflow-y: auto; /* Включаем скролл только для этой области */
+    padding: 15px;
+    box-sizing: border-box;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background-color: var(--tg-bg-color);
     color: var(--tg-text-color);
-    margin: 0;
-    padding-left: 15px;
-    padding-right: 15px;
-    padding-top: 15px;
-    box-sizing: border-box;
 }
 
 .calendar-month-container { margin-bottom: 25px; }
@@ -81,23 +88,23 @@ body {
 .loader-spinner { border: 5px solid #424242; border-top: 5px solid var(--tg-button-color); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-
-/* === НОВЫЕ СТИЛИ ДЛЯ ПАНЕЛИ ДЕЙСТВИЙ === */
+/* === ИЗМЕНЕНИЕ: СТИЛИ ДЛЯ ПАНЕЛИ ВНУТРИ FLEX-МАКЕТА === */
 .actions-container {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
     background-color: var(--tg-bg-color);
     padding: 10px 15px 15px 15px;
     box-shadow: 0 -5px 15px -5px rgba(0,0,0,0.2);
     border-top: 1px solid var(--color-cell-border);
-    transform: translateY(100%);
-    transition: transform 0.3s ease-in-out;
     z-index: 100;
+    /* Анимация появления/скрытия */
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
 }
 .actions-container.visible {
-    transform: translateY(0);
+    max-height: 200px; /* Достаточная высота для содержимого */
+    opacity: 1;
+    padding: 10px 15px 15px 15px;
 }
 .info-panel {
     text-align: center;

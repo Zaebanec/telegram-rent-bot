@@ -4,8 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
     tg.expand();
     tg.setHeaderColor('secondary_bg_color');
 
-    // Получаем элементы новой панели
+    // === ИЗМЕНЕНИЕ: Контейнер календаря теперь вложен глубже ===
     const calendarContainer = document.getElementById('calendar-container');
+    const calendarWrapper = document.getElementById('calendar-wrapper');
+
     const loaderOverlay = document.getElementById('loader');
     const actionsContainer = document.getElementById('sticky-actions-container');
     const infoText = document.getElementById('info-text');
@@ -27,8 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
     const dayNames = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-    // --- НОВЫЕ И ПЕРЕРАБОТАННЫЕ ФУНКЦИИ ---
-
     function toggleActionsMenu(show) {
         if (show && selection.start && selection.end) {
             const startStr = selection.start.toLocaleDateString('ru-RU', { timeZone: 'UTC' });
@@ -36,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
             infoText.textContent = `Период: ${startStr} - ${endStr}`;
             actionsContainer.classList.add('visible');
         } else {
-            infoText.textContent = 'Выберите диапазон дат';
             actionsContainer.classList.remove('visible');
         }
     }
@@ -52,7 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
             const dateStr = d.toISOString().split('T')[0];
             const dayData = calendarData[dateStr];
-            // Диапазон невалиден, если в нем есть прошедшие или уже забронированные дни
             if (dayData && (dayData.status === 'past' || dayData.status === 'booked')) {
                 return false;
             }
@@ -60,14 +58,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     }
 
-    // --- ОСНОВНОЙ ОБРАБОТЧИК КЛИКОВ (полностью переписан) ---
     calendarContainer.addEventListener('click', (e) => {
         const cell = e.target.closest('.day-cell');
         if (!cell || !cell.dataset.date || cell.classList.contains('disabled')) return;
 
         const clickedDate = new Date(cell.dataset.date + 'T00:00:00Z');
 
-        // Если уже выбран диапазон, любой клик по календарю его сбрасывает и начинает новый
         if (selection.start && selection.end) {
             resetSelection();
             selection.start = clickedDate;
@@ -75,47 +71,36 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Если это первый клик
         if (!selection.start) {
             selection.start = clickedDate;
             updateSelectionHighlight();
             return;
         }
 
-        // Если это второй клик (завершение диапазона)
         if (selection.start && !selection.end) {
-            let tempStart = selection.start;
-            let tempEnd = clickedDate;
-
-            // Авто-коррекция дат: начало всегда должно быть раньше конца
-            if (tempEnd < tempStart) {
-                [tempStart, tempEnd] = [tempEnd, tempStart]; // меняем местами
+            // === ИЗМЕНЕНИЕ: Без уведомления, просто сброс и новый выбор ===
+            if (clickedDate < selection.start) {
+                resetSelection();
+                selection.start = clickedDate;
+                updateSelectionHighlight();
+                return;
             }
             
-            // Валидация диапазона
-            if (!isRangeValid(tempStart, tempEnd)) {
-                tg.showAlert('Выбранный диапазон содержит забронированные или прошедшие даты. Пожалуйста, выберите другой период.', () => {
-                    resetSelection();
-                });
+            if (!isRangeValid(selection.start, clickedDate)) {
+                tg.showAlert('Выбранный диапазон содержит забронированные или прошедшие даты. Выбор сброшен.', resetSelection);
                 return;
             }
 
-            // Если все в порядке, сохраняем и показываем меню
-            selection.start = tempStart;
-            selection.end = tempEnd;
+            selection.end = clickedDate;
             updateSelectionHighlight();
             toggleActionsMenu(true);
         }
     });
     
-    // Назначаем события на кнопки в новой панели
     btnBlock.addEventListener('click', () => handlePopupAction('block'));
     btnUnblock.addEventListener('click', () => handlePopupAction('unblock'));
     btnSetPrice.addEventListener('click', () => handlePopupAction('set_price'));
 
-    // --- СТАРЫЕ ФУНКЦИИ (без showActionPopup) И ИХ ИНТЕГРАЦИЯ ---
-    // (Код renderMonth, updateSelectionHighlight, fetchAndRenderMonth и другие остаются почти без изменений)
-    
     function setLoaderVisible(visible) {
         loaderOverlay.classList.toggle('visible', visible);
     }
@@ -136,20 +121,23 @@ document.addEventListener('DOMContentLoaded', () => {
     function handlePopupAction(buttonId) {
         switch (buttonId) {
             case 'block':
-                tg.showPopup({
-                    title: 'Причина блокировки',
-                    message: 'Введите причину (необязательно, например, "Ремонт").',
-                    buttons: [{id: 'ok', type: 'ok'}, {id: 'cancel', type: 'cancel'}],
-                    inputs: [{placeholder: 'Ремонт'}]
-                }, (btn, inputs) => {
-                    if (btn === 'ok') setPeriodAvailability(false, inputs[0] || null);
+                tg.showScanQrPopup({ text: 'Причина блокировки (необязательно)' }, (comment) => {
+                    setPeriodAvailability(false, comment || null);
+                    return true;
                 });
                 break;
             case 'unblock':
                 setPeriodAvailability(true, null);
                 break;
             case 'set_price':
-                handleSetPrice();
+                tg.showScanQrPopup({ text: 'Введите новую цену (только цифры)' }, (price) => {
+                    if (price && !isNaN(parseInt(price)) && parseInt(price) > 0) {
+                        handleSetPrice(parseInt(price));
+                    } else if (price) {
+                        tg.showAlert('Пожалуйста, введите корректное число больше нуля.');
+                    }
+                    return true;
+                });
                 break;
         }
     }
@@ -182,42 +170,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function handleSetPrice() {
-        tg.showPopup({
-            title: 'Новая цена',
-            message: 'Введите новую цену для выбранного периода (только цифры):',
-            buttons: [{id: 'ok', type: 'ok'}, {id: 'cancel', type: 'cancel'}],
-            inputs: [{type: 'number', placeholder: '5000'}]
-        }, async (btn, inputs) => {
-            if (btn === 'ok') {
-                const price = inputs[0];
-                 if (!price || isNaN(parseInt(price)) || parseInt(price) <= 0) {
-                    tg.showAlert("Пожалуйста, введите корректное число больше нуля.");
-                    return;
-                }
-                const startDate = selection.start.toISOString().split('T')[0];
-                const endDate = (selection.end || selection.start).toISOString().split('T')[0];
-                setLoaderVisible(true);
-                try {
-                    const response = await fetch(`/api/owner/price_rule`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            property_id: propertyId,
-                            start_date: startDate,
-                            end_date: endDate,
-                            price: parseInt(price)
-                        })
-                    });
-                    if (!response.ok) throw new Error('Ошибка сервера при установке цены.');
-                    tg.showPopup({ title: 'Успех', message: `Цена ${price}₽ установлена для периода с ${startDate} по ${endDate}.` });
-                } catch (error) {
-                    tg.showAlert(`Ошибка: ${error.message}`);
-                } finally {
-                    await reloadCalendar();
-                }
-            }
-        });
+    async function handleSetPrice(price) {
+        const startDate = selection.start.toISOString().split('T')[0];
+        const endDate = (selection.end || selection.start).toISOString().split('T')[0];
+        setLoaderVisible(true);
+        try {
+            const response = await fetch(`/api/owner/price_rule`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    property_id: propertyId,
+                    start_date: startDate,
+                    end_date: endDate,
+                    price: price
+                })
+            });
+            if (!response.ok) throw new Error('Ошибка сервера при установке цены.');
+            tg.showPopup({ title: 'Успех', message: `Цена ${price}₽ установлена для периода с ${startDate} по ${endDate}.` });
+        } catch (error) {
+            tg.showAlert(`Ошибка: ${error.message}`);
+        } finally {
+            await reloadCalendar();
+        }
     }
 
     async function reloadCalendar() {
@@ -227,8 +201,6 @@ document.addEventListener('DOMContentLoaded', () => {
         await main();
     }
     
-    // ... функции renderMonth, fetchAndRenderMonth, main, scroll listener ...
-    // (Они остаются такими же, как в последнем предложенном варианте, привожу их для полноты)
     async function fetchAndRenderMonth(year, month) {
         if (isLoading) return;
         isLoading = true;
@@ -311,21 +283,29 @@ document.addEventListener('DOMContentLoaded', () => {
     async function main() {
         let currentYear = new Date().getFullYear();
         let currentMonth = new Date().getMonth();
-        for (let i = 0; i < 3; i++) {
-            let yearToLoad = currentYear;
-            let monthToLoad = currentMonth + i;
-            if (monthToLoad > 11) {
-                yearToLoad += Math.floor(monthToLoad / 12);
-                monthToLoad = monthToLoad % 12;
+        const loadMonths = async () => {
+            for (let i = 0; i < 3; i++) {
+                let yearToLoad = currentYear;
+                let monthToLoad = currentMonth + i;
+                if (monthToLoad > 11) {
+                    yearToLoad += Math.floor(monthToLoad / 12);
+                    monthToLoad = monthToLoad % 12;
+                }
+                await fetchAndRenderMonth(yearToLoad, monthToLoad);
             }
-            await fetchAndRenderMonth(yearToLoad, monthToLoad);
-        }
+        };
 
-        window.addEventListener('scroll', () => {
-            if (!isLoading && (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 150) {
-                currentMonth++;
-                if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-                fetchAndRenderMonth(currentYear, currentMonth);
+        await loadMonths();
+
+        calendarWrapper.addEventListener('scroll', async () => {
+            const isAtBottom = calendarWrapper.scrollHeight - calendarWrapper.scrollTop <= calendarWrapper.clientHeight + 1;
+            if (isAtBottom && !isLoading) {
+                currentMonth += 3;
+                if (currentMonth > 11) {
+                    currentMonth %= 12;
+                    currentYear++;
+                }
+                await loadMonths();
             }
         });
     }

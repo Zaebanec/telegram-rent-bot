@@ -9,15 +9,20 @@
 </head>
 <body>
 
-    <!-- Основной контейнер для календарей -->
-    <div id="calendar-container"></div>
+<!-- === ИЗМЕНЕНИЕ: ГЛАВНЫЙ FLEX-КОНТЕЙНЕР === -->
+<div class="main-view">
+    
+    <!-- === ИЗМЕНЕНИЕ: КОНТЕЙНЕР ДЛЯ СКРОЛЛА КАЛЕНДАРЯ === -->
+    <div id="calendar-wrapper">
+        <div id="calendar-container"></div>
+    </div>
 
-    <!-- Индикатор загрузки -->
+    <!-- Индикатор загрузки (вынесен наружу) -->
     <div id="loader" class="loader-overlay">
         <div class="loader-spinner"></div>
     </div>
     
-    <!-- === НОВЫЙ БЛОК: КОНТЕКСТНАЯ ПАНЕЛЬ ДЕЙСТВИЙ === -->
+    <!-- Контекстная панель действий (остается внизу) -->
     <div id="sticky-actions-container" class="actions-container">
         <div class="info-panel">
             <span id="info-text">Выберите диапазон дат</span>
@@ -29,7 +34,8 @@
         </div>
     </div>
 
-    <!-- Подключаем основной файл с логикой -->
-    <script src="/static/owner.js"></script>
+</div> <!-- Конец .main-view -->
+
+<script src="/static/owner.js"></script>
 </body>
 </html>
